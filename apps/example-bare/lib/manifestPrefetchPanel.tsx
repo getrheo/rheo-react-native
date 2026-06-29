@@ -6,7 +6,7 @@ import {
   type ManifestResolveCacheSummary,
   type RheoConfig,
 } from '@getrheo/react-native-bare';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 
 const panelStyle = {
@@ -113,10 +113,6 @@ export const ManifestPrefetchPanel = ({
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
 
   const trimmedChannel = channelId.trim();
   const prefetchConfig = buildPrefetchConfig({ publishableKey, apiBaseUrl, userId, locale });

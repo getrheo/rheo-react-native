@@ -6,14 +6,20 @@
     "node": ">=20"
   },
   "scripts": {
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r --filter '!@rheo/example-expo' --filter '!@rheo/example-bare' lint",
+    "typecheck": "pnpm -r --filter '!@rheo/example-expo' --filter '!@rheo/example-bare' typecheck",
     "test": "pnpm -r test",
     "build": "turbo run build --filter=@getrheo/react-native-core --filter=@getrheo/react-native-expo --filter=@getrheo/react-native-bare",
     "check:npm-publish-graph": "node scripts/check-npm-publish-graph-rn.mjs",
     "verify": "pnpm lint && pnpm typecheck && pnpm build && pnpm --filter @getrheo/react-native-core exec vitest run --exclude '**/LayerRenderer.test.tsx' && pnpm check:npm-publish-graph"
   },
   "devDependencies": {
-    "turbo": "^2.9.6"
+    "turbo": "^2.9.6",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "typescript-eslint": "^8.59.0",
+    "typescript": "^5.6.3",
+    "tsup": "^8.5.1"
   }
 }
