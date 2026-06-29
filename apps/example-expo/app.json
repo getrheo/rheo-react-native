@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Daily Words",
+    "slug": "rheo-example",
+    "scheme": "rheo-example",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.miudigital.sugarpal", // for testing paywall
+      "infoPlist": {
+        "NSCameraUsageDescription": "This example demonstrates Rheo OS permission onboarding flows.",
+        "NSMicrophoneUsageDescription": "This example demonstrates Rheo OS permission onboarding flows.",
+        "NSPhotoLibraryUsageDescription": "This example demonstrates Rheo OS permission onboarding flows.",
+        "NSContactsUsageDescription": "This example demonstrates Rheo OS permission onboarding flows.",
+        "NSCalendarsFullAccessUsageDescription": "This example demonstrates Rheo OS permission onboarding flows."
+      }
+    },
+    "android": {
+      "package": "com.miudigital.sugarpal", // for testing paywall
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0a0a"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_CONTACTS",
+        "android.permission.READ_CALENDAR",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "react-native-appsflyer",
+        {
+          "shouldUsePurchaseConnector": false
+        }
+      ],
+      [
+        "react-native-permissions",
+        {
+          "iosPermissions": [
+            "Notifications",
+            "Camera",
+            "Microphone",
+            "PhotoLibrary",
+            "Contacts",
+            "Calendars"
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

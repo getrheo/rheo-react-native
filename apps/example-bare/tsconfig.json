@@ -1,0 +1,8 @@
+{
+  "extends": "@rheo/config/tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022"]
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}

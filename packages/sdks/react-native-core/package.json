@@ -1,0 +1,106 @@
+{
+  "name": "@getrheo/react-native-core",
+  "version": "2.0.1",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./platform": "./src/platform/index.ts",
+    "./ui/LayerRendererShared": "./src/ui/LayerRendererShared.tsx",
+    "./ui/styles": "./src/ui/styles.ts",
+    "./ui/mediaPlayback": "./src/ui/mediaPlayback.tsx",
+    "./ui/layers/mediaLayers": "./src/ui/layers/mediaLayers.tsx"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests --config vitest.config.ts",
+    "build": "node ../../../scripts/build-publishable-package.mjs",
+    "prepublishOnly": "pnpm run build"
+  },
+  "dependencies": {
+    "@react-native-community/slider": "^5.0.1",
+    "@getrheo/attribution": "2.0.1",
+    "@getrheo/contracts": "2.0.1",
+    "@getrheo/flow-runtime": "2.0.1",
+    "@getrheo/flow-ui-state": "2.0.1",
+    "@getrheo/renderer-core": "2.0.1",
+    "react-native-linear-gradient": "^2.8.3",
+    "react-native-svg": "15.15.4",
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-native": ">=0.79"
+  },
+  "devDependencies": {
+    "@rheo/config": "workspace:*",
+    "@rheo/seeds": "workspace:*",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@testing-library/react-native": "^12.7.2",
+    "@types/react": "^19.0.1",
+    "@types/react-native-vector-icons": "^6.4.18",
+    "lottie-react-native": "^7.2.2",
+    "react": "^19.0.0",
+    "react-native": "0.83.6",
+    "react-native-gesture-handler": "~2.30.1",
+    "react-native-permissions": "^5.5.1",
+    "react-native-reanimated": "~4.2.1",
+    "react-native-safe-area-context": "~5.6.1",
+    "react-native-vector-icons": "^10.2.0",
+    "react-test-renderer": "^19.0.0",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.6",
+    "@rheo/contracts-fixtures": "workspace:*"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js",
+        "default": "./dist/index.js"
+      },
+      "./platform": {
+        "types": "./dist/platform/index.d.ts",
+        "import": "./dist/platform/index.js",
+        "default": "./dist/platform/index.js"
+      },
+      "./ui/LayerRendererShared": {
+        "types": "./dist/ui/LayerRendererShared.d.ts",
+        "import": "./dist/ui/LayerRendererShared.js",
+        "default": "./dist/ui/LayerRendererShared.js"
+      },
+      "./ui/styles": {
+        "types": "./dist/ui/styles.d.ts",
+        "import": "./dist/ui/styles.js",
+        "default": "./dist/ui/styles.js"
+      },
+      "./ui/mediaPlayback": {
+        "types": "./dist/ui/mediaPlayback.d.ts",
+        "import": "./dist/ui/mediaPlayback.js",
+        "default": "./dist/ui/mediaPlayback.js"
+      },
+      "./ui/layers/mediaLayers": {
+        "types": "./dist/ui/layers/mediaLayers.d.ts",
+        "import": "./dist/ui/layers/mediaLayers.js",
+        "default": "./dist/ui/layers/mediaLayers.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "homepage": "https://docs.getrheo.io/docs/developer-guide/sdk",
+  "description": "Rheo React Native SDK core — resolve, events, and renderer (transitive dependency).",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getrheo/rheo-react-native.git",
+    "directory": "packages/sdks/react-native-core"
+  }
+}
