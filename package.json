@@ -6,12 +6,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "lint": "pnpm -r --filter '!@rheo/example-expo' --filter '!@rheo/example-bare' lint",
-    "typecheck": "pnpm -r --filter '!@rheo/example-expo' --filter '!@rheo/example-bare' typecheck",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "build": "turbo run build --filter=@getrheo/react-native-core --filter=@getrheo/react-native-expo --filter=@getrheo/react-native-bare",
     "check:npm-publish-graph": "node scripts/check-npm-publish-graph-rn.mjs",
-    "verify": "pnpm lint && pnpm typecheck && pnpm build && pnpm --filter @getrheo/react-native-core test && pnpm check:npm-publish-graph"
+    "verify": "node scripts/check-no-platform-contracts.mjs && pnpm lint && pnpm typecheck && pnpm build && pnpm --filter @getrheo/react-native-core test && pnpm check:npm-publish-graph"
   },
   "devDependencies": {
     "turbo": "^2.9.6",
