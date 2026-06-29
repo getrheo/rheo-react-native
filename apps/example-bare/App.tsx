@@ -116,14 +116,20 @@ const AppContent = () => {
     const channelId = config.channelId.trim();
     const hideNav = config.hideFlowNavigationBar === true;
 
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#0a0a0a' }} edges={hideNav ? undefined : ['top']}>
-        {!hideNav ? <FlowHostHeader onBack={stopFlow} /> : null}
-        <Flow
-          channelId={channelId}
-          onFlowCompleted={stopFlow}
-          onFlowAbandoned={stopFlow}
-        />
+    const flow = (
+      <Flow
+        channelId={channelId}
+        onFlowCompleted={stopFlow}
+        onFlowAbandoned={stopFlow}
+      />
+    );
+
+    return hideNav ? (
+      <View style={{ flex: 1, backgroundColor: '#0a0a0a' }}>{flow}</View>
+    ) : (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#0a0a0a' }} edges={['top']}>
+        <FlowHostHeader onBack={stopFlow} />
+        {flow}
       </SafeAreaView>
     );
   }
