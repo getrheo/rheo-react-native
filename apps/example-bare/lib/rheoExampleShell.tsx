@@ -13,6 +13,7 @@ import {
   buildExampleRheoConfig,
   canStartExampleConfig,
   EXAMPLE_CONFIG_STORAGE_KEY,
+  normalizeSavedConfig,
   type SavedConfig,
 } from './exampleRheoConfig';
 
@@ -52,8 +53,8 @@ export const RheoExampleShell = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
-      const parsed = JSON.parse(raw) as SavedConfig;
-      syncFromSavedConfig(parsed);
+      const parsed = JSON.parse(raw) as Partial<SavedConfig>;
+      syncFromSavedConfig(normalizeSavedConfig(parsed));
     } catch {
       setShell(null);
     }
