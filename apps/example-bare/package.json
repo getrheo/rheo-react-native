@@ -1,0 +1,41 @@
+{
+  "name": "@rheo/example-bare",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "start": "react-native start",
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@getrheo/react-native-core": "2.0.0",
+    "@getrheo/react-native-bare": "2.0.0",
+    "lottie-react-native": "^7.2.2",
+    "react": "19.2.0",
+    "react-native": "0.83.6",
+    "react-native-gesture-handler": "~2.30.1",
+    "react-native-in-app-review": "^4.3.3",
+    "react-native-linear-gradient": "^2.8.3",
+    "react-native-permissions": "^5.5.1",
+    "react-native-reanimated": "~4.2.1",
+    "react-native-safe-area-context": "~5.6.1",
+    "react-native-svg": "15.15.4",
+    "react-native-vector-icons": "^10.2.0",
+    "react-native-video": "^6.10.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@rheo/config": "workspace:*",
+    "@react-native/babel-preset": "0.83.6",
+    "@react-native/metro-config": "0.83.6",
+    "@react-native/typescript-config": "0.83.6",
+    "@types/react": "^19.0.1",
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.6"
+  }
+}

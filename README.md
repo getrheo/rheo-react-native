@@ -1,26 +1,9 @@
 # rheo-react-native
 
-React Native SDK for Rheo (Expo and bare flavors).
+React Native SDK for Rheo — [`@getrheo/react-native-expo`](https://www.npmjs.com/package/@getrheo/react-native-expo) and [`@getrheo/react-native-bare`](https://www.npmjs.com/package/@getrheo/react-native-bare).
 
-> **Status:** Scaffolded for the Rheo SDK open-source migration. Source extraction lands in Phase 3; install published packages from npm today.
+```bash
+pnpm install && pnpm verify
+```
 
-## Packages
-
-- [@getrheo/react-native-core](https://www.npmjs.com/package/%40getrheo%2Freact-native-core)
-- [@getrheo/react-native-expo](https://www.npmjs.com/package/%40getrheo%2Freact-native-expo)
-- [@getrheo/react-native-bare](https://www.npmjs.com/package/%40getrheo%2Freact-native-bare)
-
-Primary community repo for React Native SDK issues and PRs.
-
-## Documentation
-
-- [Developer guide](https://docs.getrheo.io/docs/developer-guide/sdk)
-- [SDK overview](https://docs.getrheo.io/docs/developer-guide/sdk)
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Issues and pull requests are welcome once CI is wired.
-
-## License
-
-[MIT](./LICENSE)
+[SDK docs](https://docs.getrheo.io/docs/developer-guide/sdk)

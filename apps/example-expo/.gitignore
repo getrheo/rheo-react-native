@@ -1,0 +1,32 @@
+node_modules/
+.expo/
+dist/
+web-build/
+.env
+
+ios
+
+# Native build outputs
+ios/Pods/
+ios/build/
+android/build/
+android/app/build/
+android/.gradle/
+android/.idea/
+
+# Metro
+.metro-health-check*
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.tsbuildinfo

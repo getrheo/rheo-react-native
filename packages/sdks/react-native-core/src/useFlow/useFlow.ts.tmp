@@ -1,0 +1,874 @@
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ATTR_KEY_PROVIDER } from '@getrheo/attribution';
+import { abandonFlow, buildCompletionResponses, findExternalSurface, findInputLayer, findManualSubmitInputLayer, findScreen, initFlowState, startFlow, submitResponse, type DecisionEvaluationTelemetry, type FlowState, type StepResponse, type InterpolationContext } from '@getrheo/flow-runtime';
+import { permissionCaptureFieldKey, parseHyperlinkHref, type ButtonAction, type ExternalSurfaceNode, type FlowManifest, type FlowTerminalSnapshot, type Screen, type SdkResolveResponse, type PermissionOutcome, type Branding } from '@getrheo/contracts';
+import { resolveScreenTransition } from '@getrheo/flow-runtime';
+import { mapChannelError, useEventQueue, useRheo } from './client';
+import { createAttributionRuntime } from './attribution/createAttributionRuntime';
+import { runBuiltInOsPermissionIfAvailable } from './permissions/builtInPermissionRegistry';
+import { getResolvedAppUserId, type TrackEventInput } from './events';
+import {
+  presentRevenueCatPaywall,
+  type RevenueCatPresentResult,
+} from './externalSurfaces/revenueCat';
+import { buildTerminalSnapshot } from './terminalSnapshot';
+
+const inferReactNativeRuntimeOs = (): 'ios' | 'android' | null => {
+  try {
+    // Sync require: native apps bundle `react-native`; web/Node callers throw or omit — UA fallback handles those.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require('react-native') as typeof import('react-native');
+    if (Platform.OS === 'ios') return 'ios';
+    if (Platform.OS === 'android') return 'android';
+  } catch {
+    /* not a React Native runtime */
+  }
+  return null;
+};
+
+const inferSdkPlatform = (): 'ios' | 'android' | 'web' => {
+  const fromRn = inferReactNativeRuntimeOs();
+  if (fromRn) return fromRn;
+  type G = { navigator?: { userAgent?: string } };
+  const ua = (globalThis as G).navigator?.userAgent ?? '';
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+  if (/Android/i.test(ua)) return 'android';
+  return 'web';
+};
+
+const shallowEqualSdkAttrs = (
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+): boolean => {
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  for (const k of keysA) {
+    if (a[k] !== b[k]) return false;
+  }
+  return true;
+};
+
+export type SdkScreenTransition = {
+  outgoing: Screen;
+  incoming: Screen;
+  resolved: ReturnType<typeof resolveScreenTransition>;
+};
+
+const computeSdkScreenTransition = (prev: FlowState, next: FlowState): SdkScreenTransition | null => {
+  const prevId = prev.currentScreenId;
+  const nextId = next.currentScreenId;
+  if (!prevId || !nextId || prevId === nextId) return null;
+  const prevScreen = findScreen(prev.manifest, prevId);
+  const nextScreen = findScreen(next.manifest, nextId);
+  if (!prevScreen || !nextScreen) return null;
+  const resolved = resolveScreenTransition(prevScreen.transition);
+  if (resolved.kind === 'none' || resolved.durationMs === 0) return null;
+  return { outgoing: prevScreen, incoming: nextScreen, resolved };
+};
+
+export type UseFlowResult = {
+  loading: boolean;
+  error: Error | null;
+  state: FlowState | null;
+  screen: Screen | undefined;
+  manifest: FlowManifest | null;
+  /** Non-null while an external surface (e.g. RevenueCat paywall) is presented; the
+   * SDK is owning the screen at this point and the native renderer should not paint. */
+  pendingExternalSurface: ExternalSurfaceNode | null;
+  /** Resolved flow id served by the channel; useful for analytics overlays. */
+  flowId: string | null;
+  /** Resolved version id; pair with `flowId` to identify a specific version. */
+  versionId: string | null;
+  /** Variant id when the channel is running an experiment, otherwise `null`. */
+  variantId: string | null;
+  /** Resolved app branding from `/v1/sdk/resolve` when the app record includes it. */
+  branding: Branding | null;
+  respond: (r: StepResponse) => void;
+  /** Pass to `LayerRenderer` so Text layers can interpolate `{{ … }}`. */
+  interpolationContext: InterpolationContext | undefined;
+  /**
+   * When non-null, a cross-screen transition is active (`outgoing` → `incoming`).
+   * Set in the same update as `state` so the first paint can run the transition
+   * without flashing the incoming screen at rest.
+   */
+  screenTransition: SdkScreenTransition | null;
+  /** Pass to LayerRenderer `onAction` to resolve OS permission taps. */
+  relayNativeButtonAction: (action: ButtonAction, meta?: { layerId?: string }) => void;
+  /** Pass to LayerRenderer `onHyperlinkOpened` to emit `external_link_opened` after openURL succeeds. */
+  trackExternalLinkOpened: (meta: { layerId: string; href: string }) => void;
+  /** Transition to `abandoned` and enqueue `flow_abandoned`. No-op unless status is `running`. */
+  abandon: () => void;
+};
+
+/**
+ * Adapter for an external surface (RevenueCat-only in v1). Defaults to the
+ * built-in `presentRevenueCatPaywall`; tests can inject a stub.
+ */
+export type ExternalSurfacePresenter = (
+  node: ExternalSurfaceNode,
+) => Promise<RevenueCatPresentResult>;
+
+export type UseFlowOptions = {
+  /** Channel `publicId` from the dashboard (e.g. ch_test_a1b2c3d4). */
+  channelId: string;
+  /**
+   * Override the external-surface presenter. The default presents the host's
+   * RevenueCat paywall via `react-native-purchases-ui`.
+   */
+  externalSurfacePresenter?: ExternalSurfacePresenter;
+  /** Include full manifest on terminal snapshots (large). Default false. */
+  includeManifestInTerminalPayload?: boolean;
+  /** Include `path` (walked screen / surface ids). Default false. */
+  includePathInTerminalPayload?: boolean;
+  /** Include `answersDetail` (raw step responses minus auth keys). Default false. */
+  includeAnswerDetailInTerminalPayload?: boolean;
+  /**
+   * After `flow_completed` is enqueued synchronously in `respond`.
+   * Invoked in a microtask so analytics ordering stays ahead of host logic.
+   */
+  onFlowCompleted?: (payload: FlowTerminalSnapshot) => void;
+  /**
+   * After state transitions to `abandoned` (typically via `abandon()`).
+   * `flow_abandoned` is enqueued before this runs (microtask).
+   */
+  onFlowAbandoned?: (payload: FlowTerminalSnapshot) => void;
+};
+
+const defaultExternalSurfacePresenter: ExternalSurfacePresenter = (node) => {
+  if (node.config.provider === 'revenuecat') {
+    return presentRevenueCatPaywall(node.config);
+  }
+  if (node.config.provider === 'unspecified') {
+    return Promise.resolve({
+      outcome: 'failed' as const,
+      sdkKeyPatch: { onb_rc_last_event: 'failed' },
+    });
+  }
+  // No other providers in v1 — fall through to `failed` so authors' fallback runs.
+  return Promise.resolve({
+    outcome: 'failed' as const,
+    sdkKeyPatch: { onb_rc_last_event: 'failed' },
+  });
+};
+
+/**
+ * Resolve and run the flow assigned to this channel + publishable key.
+ *
+ * The SDK no longer takes a flowId — channels (dashboard routing) decide
+ * what to serve. Pass the channel **public id** from the renderer.
+ */
+export const useFlow = ({
+  channelId,
+  externalSurfacePresenter,
+  includeManifestInTerminalPayload,
+  includePathInTerminalPayload,
+  includeAnswerDetailInTerminalPayload,
+  onFlowCompleted,
+  onFlowAbandoned,
+}: UseFlowOptions): UseFlowResult => {
+  const config = useRheo();
+  const queue = useEventQueue();
+  const channelTrimmed = channelId.trim();
+  const presenterRef = useRef<ExternalSurfacePresenter>(
+    externalSurfacePresenter ?? defaultExternalSurfacePresenter,
+  );
+  presenterRef.current = externalSurfacePresenter ?? defaultExternalSurfacePresenter;
+  const channelInvalid = channelTrimmed.length === 0;
+
+  const channelRef = useRef(channelTrimmed);
+  channelRef.current = channelTrimmed;
+
+  const [resolved, setResolved] = useState<SdkResolveResponse | null>(null);
+  const canRunAttribution = useMemo(() => {
+    if (config.attribution?.enabled === false) return false;
+    if (!resolved) return false;
+    if (resolved.features?.attribution === false) return false;
+    if (resolved.integrations?.appsflyer?.enabled !== true) return false;
+    return true;
+  }, [resolved, config.attribution?.enabled]);
+
+  const [state, setState] = useState<FlowState | null>(null);
+  const [screenTransition, setScreenTransition] = useState<SdkScreenTransition | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(true);
+  const startedRef = useRef(false);
+  // Mirror of the latest state for the abandon-on-unmount cleanup, which
+  // can't read React state via the closure (it would always see stale).
+  const stateRef = useRef<FlowState | null>(null);
+  const resolvedRef = useRef<SdkResolveResponse | null>(null);
+  // Tracks the last screen we fired `step_viewed` for so the effect that
+  // watches `currentScreenId` doesn't double-fire on re-renders.
+  const lastViewedRef = useRef<string | null>(null);
+  const respondRef = useRef<(r: StepResponse) => void>(() => {});
+  const configRef = useRef(config);
+  useLayoutEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
+  const includeManifestRef = useRef(includeManifestInTerminalPayload ?? false);
+  useLayoutEffect(() => {
+    includeManifestRef.current = includeManifestInTerminalPayload ?? false;
+  }, [includeManifestInTerminalPayload]);
+
+  const includePathRef = useRef(includePathInTerminalPayload ?? false);
+  useLayoutEffect(() => {
+    includePathRef.current = includePathInTerminalPayload ?? false;
+  }, [includePathInTerminalPayload]);
+
+  const includeAnswerDetailRef = useRef(includeAnswerDetailInTerminalPayload ?? false);
+  useLayoutEffect(() => {
+    includeAnswerDetailRef.current = includeAnswerDetailInTerminalPayload ?? false;
+  }, [includeAnswerDetailInTerminalPayload]);
+
+  const onFlowCompletedRef = useRef(onFlowCompleted);
+  const onFlowAbandonedRef = useRef(onFlowAbandoned);
+  useLayoutEffect(() => {
+    onFlowCompletedRef.current = onFlowCompleted;
+    onFlowAbandonedRef.current = onFlowAbandoned;
+  }, [onFlowCompleted, onFlowAbandoned]);
+
+  /** Dedupe terminal callbacks per `{terminal}-{completedAt}`. */
+  const terminalHandledRef = useRef('');
+
+  /** Channel id for emits after successful resolve (`''` until then). */
+  const flowEmitChannelRef = useRef('');
+  /** One `attribution_context_observed` emit per provider id per channel mount / attribution session. */
+  const emittedAttributionSignalProvidersRef = useRef<Set<string>>(new Set());
+
+  const enqueueSdk = useCallback((input: TrackEventInput) => {
+    const ch = flowEmitChannelRef.current;
+    if (!ch) return;
+    queue.enqueue(input, { channelId: ch });
+  }, [queue]);
+
+  useLayoutEffect(() => {
+    startedRef.current = false;
+    lastViewedRef.current = null;
+    emittedAttributionSignalProvidersRef.current.clear();
+    terminalHandledRef.current = '';
+  }, [channelTrimmed]);
+
+  const enqueueDecisionEvaluated = useCallback(
+    (payload: DecisionEvaluationTelemetry) => {
+      const data = resolvedRef.current;
+      if (!data) return;
+      enqueueSdk({
+        name: 'decision_evaluated',
+        flowId: data.flowId,
+        versionId: data.versionId,
+        experimentId: data.experimentId,
+        variantId: data.variantId,
+        properties: {
+          decision_node_id: payload.decisionNodeId,
+          matched_case_id: payload.matchedCaseId,
+          used_else_branch: payload.matchedCaseId === null,
+          clause_digest: payload.clauseDigest,
+        },
+      });
+    },
+    [enqueueSdk],
+  );
+
+  const [attributionSdk, setAttributionSdk] = useState<Record<string, unknown>>({});
+
+  const mergedSdkAttributes = useMemo(
+    () => ({ ...(config.sdkAttributes ?? {}), ...attributionSdk }),
+    [config.sdkAttributes, attributionSdk],
+  );
+
+  useEffect(() => {
+    if (!canRunAttribution) {
+      setAttributionSdk({});
+      emittedAttributionSignalProvidersRef.current.clear();
+      return undefined;
+    }
+    const rt = createAttributionRuntime({
+      enabled: true,
+      cacheEnabled: config.attribution?.cache !== false,
+      cacheTtlMs: config.attribution?.cacheTtlMs,
+      storageNamespace: getResolvedAppUserId(config),
+      storage: config.attribution?.storage,
+      providers: config.attribution?.providers,
+    });
+    const unsub = rt.subscribe(setAttributionSdk);
+    return () => {
+      unsub();
+      rt.dispose();
+    };
+  }, [
+    canRunAttribution,
+    config.attribution?.cache,
+    config.attribution?.cacheTtlMs,
+    config.attribution?.storage,
+    config.attribution?.providers,
+    config.userId,
+  ]);
+
+  useEffect(() => {
+    setState((prev) => {
+      if (!prev) return prev;
+      if (shallowEqualSdkAttrs(prev.session.sdkAttributes, mergedSdkAttributes)) return prev;
+      const next = {
+        ...prev,
+        session: { ...prev.session, sdkAttributes: mergedSdkAttributes },
+      };
+      stateRef.current = next;
+      return next;
+    });
+  }, [mergedSdkAttributes]);
+
+  useEffect(() => {
+    if (!canRunAttribution) return;
+    const data = resolvedRef.current;
+    if (!data) return;
+    if (!flowEmitChannelRef.current) return;
+    const raw = mergedSdkAttributes[ATTR_KEY_PROVIDER];
+    if (typeof raw !== 'string') return;
+    const pid = raw.trim().toLowerCase();
+    if (!pid || !/^[a-z0-9_-]+$/.test(pid)) return;
+    if (emittedAttributionSignalProvidersRef.current.has(pid)) return;
+    emittedAttributionSignalProvidersRef.current.add(pid);
+    enqueueSdk({
+      name: 'attribution_context_observed',
+      flowId: data.flowId,
+      versionId: data.versionId,
+      experimentId: data.experimentId,
+      variantId: data.variantId,
+      properties: { attribution_provider: pid },
+    });
+  }, [canRunAttribution, mergedSdkAttributes, enqueueSdk]);
+
+  useEffect(() => {
+    if (channelInvalid) {
+      flowEmitChannelRef.current = '';
+      resolvedRef.current = null;
+      stateRef.current = null;
+      setResolved(null);
+      setState(null);
+      setError(
+        new Error(
+          'useFlow: `channelId` is required — pass the channel public id (e.g. ch_test_…) from `Onboarding` or your screen.',
+        ),
+      );
+      setLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    setError(null);
+    setLoading(true);
+
+    const fetcher = config.fetcher ?? fetch;
+    fetcher(`${config.apiBaseUrl}/v1/sdk/resolve`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${config.publishableKey}`,
+        'content-type': 'application/json',
+        'x-rheo-channel': channelTrimmed,
+      },
+      body: JSON.stringify({
+        identity: { appUserId: getResolvedAppUserId(config) },
+        context: config.locale ? { locale: config.locale } : undefined,
+      }),
+    })
+      .then(async (r) => {
+        if (!r.ok) throw await mapChannelError(r);
+        return (await r.json()) as SdkResolveResponse;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        flowEmitChannelRef.current = channelRef.current;
+        setResolved(data);
+        resolvedRef.current = data;
+        const initial = startFlow(
+          initFlowState(data.manifest, {
+            locale: config.locale,
+            platform: config.platform ?? inferSdkPlatform(),
+            sdkAttributes: config.sdkAttributes ?? {},
+          }),
+        );
+        setState(initial);
+        stateRef.current = initial;
+        setScreenTransition(null);
+        setLoading(false);
+        if (!startedRef.current) {
+          startedRef.current = true;
+          enqueueSdk({
+            name: 'flow_started',
+            flowId: data.flowId,
+            versionId: data.versionId,
+            experimentId: data.experimentId,
+            variantId: data.variantId,
+          });
+        }
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        flowEmitChannelRef.current = '';
+        setError(err);
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    channelInvalid,
+    channelTrimmed,
+    config.apiBaseUrl,
+    config.fetcher,
+    config.locale,
+    config.platform,
+    config.publishableKey,
+    config.userId,
+    enqueueSdk,
+  ]);
+
+  // Cleanup: if the host unmounts the provider before the flow reaches a
+  // terminal state, emit `flow_abandoned` so the funnel attributes the
+  // drop-off correctly. The queue's own shutdown (in RheoProvider)
+  // will then drain the buffer.
+  useEffect(() => {
+    return () => {
+      const s = stateRef.current;
+      const r = resolvedRef.current;
+      const ch = flowEmitChannelRef.current;
+      if (!s || !r || !ch) return;
+      if (s.status === 'completed' || s.status === 'abandoned') return;
+      queue.enqueue(
+        {
+          name: 'flow_abandoned',
+          flowId: r.flowId,
+          versionId: r.versionId,
+          experimentId: r.experimentId,
+          variantId: r.variantId,
+          stepId: s.currentScreenId,
+        },
+        { channelId: ch },
+      );
+    };
+  }, [queue]);
+
+  useEffect(() => {
+    if (loading || !resolved || !state) return;
+    if (state.status !== 'completed' && state.status !== 'abandoned') return;
+
+    const terminal = state.status;
+    const cb =
+      terminal === 'completed' ? onFlowCompletedRef.current : onFlowAbandonedRef.current;
+    if (!cb) return;
+
+    const key = `${terminal}-${state.completedAt ?? ''}`;
+    if (terminalHandledRef.current === key) return;
+    terminalHandledRef.current = key;
+
+    const snapshot = buildTerminalSnapshot({
+      terminal,
+      resolved,
+      state,
+      subject: {
+        appUserId: getResolvedAppUserId(configRef.current),
+        ...(configRef.current.customUserId
+          ? { customUserId: configRef.current.customUserId }
+          : {}),
+        ...(configRef.current.sessionId ? { sessionId: configRef.current.sessionId } : {}),
+      },
+      appVersion: configRef.current.appVersion,
+      customProperties: configRef.current.customProperties,
+      includeManifest: includeManifestRef.current,
+      includePath: includePathRef.current,
+      includeAnswerDetail: includeAnswerDetailRef.current,
+    });
+
+    queueMicrotask(() => {
+      if (terminal === 'completed') {
+        onFlowCompletedRef.current?.(snapshot);
+      } else {
+        onFlowAbandonedRef.current?.(snapshot);
+      }
+    });
+  }, [loading, resolved, state]);
+
+  const screen = useMemo(
+    () =>
+      resolved?.manifest && state?.currentScreenId
+        ? findScreen(resolved.manifest, state.currentScreenId)
+        : undefined,
+    [resolved?.manifest, state?.currentScreenId],
+  );
+
+  const interpolationContext = useMemo<InterpolationContext | undefined>(
+    () =>
+      state
+        ? {
+            responses: state.responses,
+            customProperties: config.customProperties,
+            canGoBack: state.history.length > 1,
+          }
+        : undefined,
+    [state, config.customProperties],
+  );
+
+  // Fire step_viewed whenever the current screen changes. Memoized via
+  // lastViewedRef so we don't double-fire on re-renders that don't
+  // actually advance the screen.
+  useEffect(() => {
+    if (!resolved || !state?.currentScreenId) return;
+    if (lastViewedRef.current === state.currentScreenId) return;
+    lastViewedRef.current = state.currentScreenId;
+    enqueueSdk({
+      name: 'step_viewed',
+      flowId: resolved.flowId,
+      versionId: resolved.versionId,
+      experimentId: resolved.experimentId,
+      variantId: resolved.variantId,
+      stepId: state.currentScreenId,
+    });
+  }, [resolved, state?.currentScreenId, enqueueSdk]);
+
+  // Present an external surface (RevenueCat paywall) exactly once per
+  // pending node id. The presenter promise resolves to a normalized outcome
+  // we forward through `respond` so the state machine advances.
+  const presentedSurfaceRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!resolved || !state) return;
+    const pending = state.pendingExternalSurface;
+    if (!pending) {
+      presentedSurfaceRef.current = null;
+      return;
+    }
+    if (presentedSurfaceRef.current === pending.nodeId) return;
+    const node = findExternalSurface(state.manifest, pending.nodeId);
+    if (!node) return;
+    presentedSurfaceRef.current = pending.nodeId;
+
+    enqueueSdk({
+      name: 'surface_presented',
+      flowId: resolved.flowId,
+      versionId: resolved.versionId,
+      experimentId: resolved.experimentId,
+      variantId: resolved.variantId,
+      stepId: pending.nodeId,
+      properties: {
+        surface_node_id: pending.nodeId,
+        provider: node.config.provider,
+        ...(node.config.provider === 'revenuecat' && node.config.offeringId
+          ? { offering_id: node.config.offeringId }
+          : {}),
+      },
+    });
+
+    let cancelled = false;
+    void presenterRef
+      .current(node)
+      .then((result) => {
+        if (cancelled) return;
+        enqueueSdk({
+          name: 'surface_outcome',
+          flowId: resolved.flowId,
+          versionId: resolved.versionId,
+          experimentId: resolved.experimentId,
+          variantId: resolved.variantId,
+          stepId: pending.nodeId,
+          properties: {
+            surface_node_id: pending.nodeId,
+            provider: node.config.provider,
+            outcome: result.outcome,
+          },
+        });
+        respondRef.current({
+          kind: 'external_surface_outcome',
+          nodeId: pending.nodeId,
+          outcome: result.outcome,
+          sdkKeyPatch: result.sdkKeyPatch,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        respondRef.current({
+          kind: 'external_surface_outcome',
+          nodeId: pending.nodeId,
+          outcome: 'failed',
+          sdkKeyPatch: { onb_rc_last_event: 'failed' },
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resolved, state, enqueueSdk]);
+
+  useLayoutEffect(() => {
+    if (!screenTransition) return;
+    const ms = screenTransition.resolved.durationMs + 16;
+    const t = setTimeout(() => setScreenTransition(null), ms);
+    return () => clearTimeout(t);
+  }, [screenTransition?.outgoing.id, screenTransition?.incoming.id]);
+
+  const respond = useCallback(
+    (r: StepResponse) => {
+      const prev = stateRef.current;
+      const data = resolvedRef.current;
+      if (!prev || !data) return;
+      const previousScreenId = prev.currentScreenId;
+      const screen = previousScreenId
+        ? findScreen(prev.manifest, previousScreenId)
+        : undefined;
+      const input = screen ? findInputLayer(screen) : null;
+      const manualInput = screen ? findManualSubmitInputLayer(screen) : null;
+      const analyticsSource: StepResponse = r.kind === 'screen_commit' ? r.primary : r;
+      const navKind = r.kind === 'screen_commit' ? r.primary.kind : r.kind;
+
+      if (r.kind === 'go_back') {
+        const next = submitResponse(prev, r, { onDecisionEvaluated: enqueueDecisionEvaluated });
+        if (next.currentScreenId === prev.currentScreenId) return;
+        setScreenTransition(computeSdkScreenTransition(prev, next));
+        setState(next);
+        stateRef.current = next;
+        return;
+      }
+
+      const enqueueInputCaptureAnalytics = (cap: StepResponse): void => {
+        if (!previousScreenId) return;
+        if (cap.kind === 'choice' && input && 'fieldKey' in input) {
+          enqueueSdk({
+            name: 'choice_selected',
+            flowId: data.flowId,
+            versionId: data.versionId,
+            experimentId: data.experimentId,
+            variantId: data.variantId,
+            stepId: previousScreenId,
+            properties: { field_key: input.fieldKey, value: cap.choiceId },
+          });
+        } else if (cap.kind === 'multiChoice' && input && 'fieldKey' in input) {
+          for (const choiceId of cap.choiceIds) {
+            enqueueSdk({
+              name: 'choice_selected',
+              flowId: data.flowId,
+              versionId: data.versionId,
+              experimentId: data.experimentId,
+              variantId: data.variantId,
+              stepId: previousScreenId,
+              properties: { field_key: input.fieldKey, value: choiceId },
+            });
+          }
+        } else if (cap.kind === 'text' && input && 'fieldKey' in input) {
+          enqueueSdk({
+            name: 'text_submitted',
+            flowId: data.flowId,
+            versionId: data.versionId,
+            experimentId: data.experimentId,
+            variantId: data.variantId,
+            stepId: previousScreenId,
+            properties: { field_key: input.fieldKey, value: cap.value },
+            fieldClassification: cap.classification,
+          });
+        } else if (cap.kind === 'scale' && input && 'fieldKey' in input) {
+          enqueueSdk({
+            name: 'text_submitted',
+            flowId: data.flowId,
+            versionId: data.versionId,
+            experimentId: data.experimentId,
+            variantId: data.variantId,
+            stepId: previousScreenId,
+            properties: { field_key: input.fieldKey, value: String(cap.value) },
+            fieldClassification: 'safe',
+          });
+        }
+      };
+
+      if (r.kind === 'end_flow' && r.consumedDraft) {
+        enqueueInputCaptureAnalytics(r.consumedDraft);
+      }
+
+      // Fire choice_selected / text_submitted (incl. stringified scale) BEFORE
+      // step_completed so the analytics ordering reflects the user action chain.
+      if (
+        analyticsSource.kind === 'choice' ||
+        analyticsSource.kind === 'multiChoice' ||
+        analyticsSource.kind === 'text' ||
+        analyticsSource.kind === 'scale'
+      ) {
+        enqueueInputCaptureAnalytics(analyticsSource);
+      } else if (r.kind === 'permission_outcome' && previousScreenId) {
+        enqueueSdk({
+          name: 'text_submitted',
+          flowId: data.flowId,
+          versionId: data.versionId,
+          experimentId: data.experimentId,
+          variantId: data.variantId,
+          stepId: previousScreenId,
+          properties: {
+            field_key: permissionCaptureFieldKey(r.permissionKey),
+            value: r.outcome,
+          },
+          fieldClassification: 'safe',
+        });
+      }
+
+      const next = submitResponse(prev, r, { onDecisionEvaluated: enqueueDecisionEvaluated });
+      setScreenTransition(computeSdkScreenTransition(prev, next));
+      setState(next);
+      stateRef.current = next;
+
+      const oauthFailNoAdvance = r.kind === 'oauth_login_resolve' && !r.success;
+      const leftRunningStep =
+        !!previousScreenId &&
+        prev.status === 'running' &&
+        !oauthFailNoAdvance &&
+        (next.currentScreenId !== previousScreenId || next.status === 'completed');
+
+      if (r.kind === 'skip' && leftRunningStep) {
+        enqueueSdk({
+          name: 'step_skipped',
+          flowId: data.flowId,
+          versionId: data.versionId,
+          experimentId: data.experimentId,
+          variantId: data.variantId,
+          stepId: previousScreenId,
+          ...(manualInput
+            ? {
+                properties: {
+                  field_key: manualInput.fieldKey,
+                  empty_capture: true,
+                },
+              }
+            : {}),
+        });
+      }
+
+      if (next.status === 'completed') {
+        enqueueSdk({
+          name: 'flow_completed',
+          flowId: data.flowId,
+          versionId: data.versionId,
+          experimentId: data.experimentId,
+          variantId: data.variantId,
+          properties: {
+            responseCount: Object.keys(buildCompletionResponses(next)).length,
+          },
+        });
+      } else if (
+        previousScreenId &&
+        !oauthFailNoAdvance &&
+        r.kind !== 'skip'
+      ) {
+        enqueueSdk({
+          name: 'step_completed',
+          flowId: data.flowId,
+          versionId: data.versionId,
+          experimentId: data.experimentId,
+          variantId: data.variantId,
+          stepId: previousScreenId,
+          ...(navKind === 'go_to_screen' && manualInput
+            ? {
+                properties: {
+                  field_key: manualInput.fieldKey,
+                  empty_capture: true,
+                },
+              }
+            : {}),
+        });
+      }
+    },
+    [enqueueDecisionEvaluated, enqueueSdk],
+  );
+
+  useLayoutEffect(() => {
+    respondRef.current = respond;
+  }, [respond]);
+
+  const abandon = useCallback(() => {
+    const prev = stateRef.current;
+    const data = resolvedRef.current;
+    const ch = flowEmitChannelRef.current;
+    if (!prev || !data || !ch) return;
+    if (prev.status !== 'running') return;
+    enqueueSdk({
+      name: 'flow_abandoned',
+      flowId: data.flowId,
+      versionId: data.versionId,
+      experimentId: data.experimentId,
+      variantId: data.variantId,
+      stepId: prev.currentScreenId,
+    });
+    const next = abandonFlow(prev);
+    setState(next);
+    stateRef.current = next;
+  }, [enqueueSdk]);
+
+  const relayNativeButtonAction = useCallback(
+    (action: ButtonAction, meta?: { layerId?: string }): void => {
+      if (action.kind !== 'request_os_permission') return;
+      const prev = stateRef.current;
+      const data = resolvedRef.current;
+      const screenId = prev?.currentScreenId;
+      const layerId = meta?.layerId;
+      if (!prev || !data || !screenId || !layerId) return;
+
+      const finalize = (outcome: PermissionOutcome): void => {
+        respondRef.current({
+          kind: 'permission_outcome',
+          layerId,
+          permissionKey: action.permissionKey,
+          outcome,
+        });
+      };
+
+      void runBuiltInOsPermissionIfAvailable(action.permissionKey, prev.session.platform)
+        .then(finalize)
+        .catch(() => finalize('denied'));
+    },
+    [],
+  );
+
+  const trackExternalLinkOpened = useCallback(
+    (meta: { layerId: string; href: string }): void => {
+      const data = resolvedRef.current;
+      const st = stateRef.current;
+      if (!data || !st?.currentScreenId) return;
+      const parsed = parseHyperlinkHref(meta.href.trim());
+      if (!parsed.ok) return;
+      const properties: Record<string, string | number | boolean | null | string[]> = {
+        layerId: meta.layerId,
+        hrefScheme: parsed.scheme,
+      };
+      if (parsed.scheme === 'https') properties.linkHost = parsed.host;
+      enqueueSdk({
+        name: 'external_link_opened',
+        flowId: data.flowId,
+        versionId: data.versionId,
+        experimentId: data.experimentId,
+        variantId: data.variantId,
+        stepId: st.currentScreenId,
+        properties,
+      });
+    },
+    [enqueueSdk],
+  );
+
+  const pendingExternalSurface = useMemo<ExternalSurfaceNode | null>(() => {
+    if (!resolved?.manifest || !state?.pendingExternalSurface) return null;
+    return findExternalSurface(resolved.manifest, state.pendingExternalSurface.nodeId) ?? null;
+  }, [resolved?.manifest, state?.pendingExternalSurface]);
+
+  return {
+    loading,
+    error,
+    state,
+    screen,
+    manifest: resolved?.manifest ?? null,
+    pendingExternalSurface,
+    flowId: resolved?.flowId ?? null,
+    versionId: resolved?.versionId ?? null,
+    variantId: resolved?.variantId ?? null,
+    branding: resolved?.branding ?? null,
+    respond,
+    interpolationContext,
+    screenTransition,
+    relayNativeButtonAction,
+    trackExternalLinkOpened,
+    abandon,
+  };
+};

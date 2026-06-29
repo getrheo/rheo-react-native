@@ -1,0 +1,19 @@
+{
+  "name": "rheo-react-native",
+  "private": true,
+  "packageManager": "pnpm@8.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "build": "turbo run build --filter=@getrheo/react-native-core --filter=@getrheo/react-native-expo --filter=@getrheo/react-native-bare",
+    "check:npm-publish-graph": "node scripts/check-npm-publish-graph-rn.mjs",
+    "verify": "pnpm lint && pnpm typecheck && pnpm build && pnpm --filter @getrheo/react-native-core exec vitest run --exclude '**/LayerRenderer.test.tsx' && pnpm check:npm-publish-graph"
+  },
+  "devDependencies": {
+    "turbo": "^2.9.6"
+  }
+}
