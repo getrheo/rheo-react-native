@@ -1,6 +1,6 @@
 {
   "name": "@getrheo/react-native-expo",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -15,7 +15,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@getrheo/react-native-core": "2.0.1"
+    "@getrheo/react-native-core": "2.0.2"
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": ">=2",
@@ -34,9 +34,9 @@
   },
   "devDependencies": {
     "@rheo/config": "workspace:*",
-    "@getrheo/contracts": "2.0.1",
-    "@getrheo/flow-runtime": "2.0.1",
-    "@getrheo/react-native-core": "2.0.1",
+    "@getrheo/contracts": "2.0.2",
+    "@getrheo/flow-runtime": "2.0.2",
+    "@getrheo/react-native-core": "2.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@types/react": "^19.0.1",
     "expo-store-review": "~9.0.0",
@@ -77,5 +77,8 @@
     "type": "git",
     "url": "git+https://github.com/getrheo/rheo-react-native.git",
     "directory": "packages/sdks/react-native-expo"
+  },
+  "bugs": {
+    "url": "https://github.com/getrheo/rheo-react-native/issues"
   }
 }
