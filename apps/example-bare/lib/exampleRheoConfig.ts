@@ -12,6 +12,22 @@ export type SavedConfig = {
   hideFlowNavigationBar?: boolean;
 };
 
+export const defaultSavedConfig = (): SavedConfig => ({
+  publishableKey: '',
+  channelId: '',
+  apiBaseUrl: DEFAULT_API_URL,
+  userId: 'example-user',
+  hideFlowNavigationBar: false,
+});
+
+export const normalizeSavedConfig = (parsed: Partial<SavedConfig>): SavedConfig => ({
+  ...defaultSavedConfig(),
+  ...parsed,
+  apiBaseUrl: parsed.apiBaseUrl || DEFAULT_API_URL,
+  userId: parsed.userId || 'example-user',
+  hideFlowNavigationBar: parsed.hideFlowNavigationBar ?? false,
+});
+
 export const canStartExampleConfig = (config: SavedConfig): boolean =>
   config.publishableKey.trim().length > 0 &&
   config.channelId.trim().length > 0 &&
