@@ -39,8 +39,8 @@ importers:
   packages/contracts-fixtures:
     dependencies:
       '@getrheo/contracts':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
     devDependencies:
       '@rheo/config':
         specifier: workspace:*
@@ -52,15 +52,15 @@ importers:
   packages/sdks/react-native-bare:
     dependencies:
       '@getrheo/react-native-core':
-        specifier: 2.0.3
+        specifier: 2.1.0
         version: link:../react-native-core
     devDependencies:
       '@getrheo/contracts':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@getrheo/flow-runtime':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.83.6)
@@ -116,20 +116,20 @@ importers:
   packages/sdks/react-native-core:
     dependencies:
       '@getrheo/attribution':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@getrheo/contracts':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@getrheo/flow-runtime':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@getrheo/flow-ui-state':
-        specifier: 2.0.3
-        version: 2.0.3(react@19.2.7)
+        specifier: 2.1.0
+        version: 2.1.0(react@19.2.7)
       '@getrheo/renderer-core':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@react-native-community/slider':
         specifier: ^5.0.1
         version: 5.2.0
@@ -201,15 +201,15 @@ importers:
   packages/sdks/react-native-expo:
     dependencies:
       '@getrheo/react-native-core':
-        specifier: 2.0.3
+        specifier: 2.1.0
         version: link:../react-native-core
     devDependencies:
       '@getrheo/contracts':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@getrheo/flow-runtime':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.83.6)
@@ -265,11 +265,11 @@ importers:
   packages/seeds:
     dependencies:
       '@getrheo/contracts':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
       '@getrheo/flow-runtime':
-        specifier: 2.0.3
-        version: 2.0.3
+        specifier: 2.1.0
+        version: 2.1.0
     devDependencies:
       '@rheo/config':
         specifier: workspace:*
@@ -2131,38 +2131,38 @@ packages:
       js-yaml: 4.3.0
     dev: true
 
-  /@getrheo/attribution@2.0.3:
-    resolution: {integrity: sha512-a2ieO3x45YOKV4jKZ8w6vpXTEnmw8S63L4Ohcw2zVagtK1i40jhi6tSHt4CEo4k3jQF5iEAMxUHnW0uLAmOXvg==}
+  /@getrheo/attribution@2.1.0:
+    resolution: {integrity: sha512-KAfKzjpcXNzb78CtXl0gUVMbFlpyAASkVqy1EEvoHXS0tBPEyBTm9Yk9JkAC9HmjpCNE8eLhHQWTnb9Z/guy/w==}
     dependencies:
-      '@getrheo/contracts': 2.0.3
+      '@getrheo/contracts': 2.1.0
       zod: 3.25.76
     dev: false
 
-  /@getrheo/contracts@2.0.3:
-    resolution: {integrity: sha512-pKv4jmz6H9J0eAy7JydBt38ak7Fx+KO+ccCPSm5ruJQBVD9Ri2aQYj4z9tW1F9tKE2uFUxagwykiWapbSrGRQg==}
+  /@getrheo/contracts@2.1.0:
+    resolution: {integrity: sha512-Ju9QXPY0AVf2iD2XtJsQRukGJ+3jgVuLhnPW2g8O4WMOy1pxdtl9VS8MildgUwGybK+nAyVeODCHJWvbN2WlVg==}
     dependencies:
       zod: 3.25.76
 
-  /@getrheo/flow-runtime@2.0.3:
-    resolution: {integrity: sha512-RT6shbTUH5kyaaxjaFbgHZNWDyTCfxvquQRRRw5rJ8lr1mVQ0cqJ88J9LweZ8dzoA50dw4Jz1eirkCyzhVsbgg==}
+  /@getrheo/flow-runtime@2.1.0:
+    resolution: {integrity: sha512-Eqx0LuR9r6R/QFtm5MntKtFe9XS/gHq8PpDu1nsUvu6G00RcLiZ7wo1IIEBdC1lBqZ7mEI8z+OUYkM6LlmJDEw==}
     dependencies:
-      '@getrheo/contracts': 2.0.3
+      '@getrheo/contracts': 2.1.0
 
-  /@getrheo/flow-ui-state@2.0.3(react@19.2.7):
-    resolution: {integrity: sha512-zFYYZges4fiZ4VlQEIWGYKRaP4RaXjNY2kY3/sGyYtV5RxdjyI9YrOf7Je74Y7MpvVLFOKmlnRcfHD33OD5Gcg==}
+  /@getrheo/flow-ui-state@2.1.0(react@19.2.7):
+    resolution: {integrity: sha512-o8u3seIl3jHTtQ4qx650puOX1dpENOeqv31B8ax2sNWjh+/9+F/uw0bLNY7Bh+cM6n5x3vpWEIMX6Alg+6wTTQ==}
     peerDependencies:
       react: '>=18'
     dependencies:
-      '@getrheo/contracts': 2.0.3
-      '@getrheo/flow-runtime': 2.0.3
+      '@getrheo/contracts': 2.1.0
+      '@getrheo/flow-runtime': 2.1.0
       react: 19.2.7
     dev: false
 
-  /@getrheo/renderer-core@2.0.3:
-    resolution: {integrity: sha512-+168PfF/rxCwQxrHWinZ5s8ve4QbZvmUppLWn3nV1bk2MGZ+U8SNvMvC2dASL2ywxVaoVq+epZPEDU06hAex6A==}
+  /@getrheo/renderer-core@2.1.0:
+    resolution: {integrity: sha512-eQ5LB38sPfnN6VmIG3HAnpwGC48PON84qPJHbnhgrbLyGCd2pIcNI0HwS0p8KLch9a+/QiByQv40pyEVBEcGaA==}
     dependencies:
-      '@getrheo/contracts': 2.0.3
-      '@getrheo/flow-runtime': 2.0.3
+      '@getrheo/contracts': 2.1.0
+      '@getrheo/flow-runtime': 2.1.0
     dev: false
 
   /@humanfs/core@0.19.2:

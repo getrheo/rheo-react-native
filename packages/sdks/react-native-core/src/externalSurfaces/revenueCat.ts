@@ -1,5 +1,6 @@
 import type { IapPurchaseEventProperties, NormalizedSurfaceOutcome, RevenueCatSurfaceConfig } from '@getrheo/contracts';
 import type { SurfaceSdkKeyPatch } from '@getrheo/flow-runtime';
+import { getSdkLogger } from '../logging/sdkLogger';
 
 /**
  * Commerce details extracted from RevenueCat after a successful purchase. The
@@ -235,7 +236,7 @@ export const extractRevenueCatPurchaseCommerce = async (
     info = await purchases.getCustomerInfo();
   } catch (err) {
      
-    console.warn('[rheo] RevenueCat getCustomerInfo failed:', err);
+    getSdkLogger().warn('[rheo] RevenueCat getCustomerInfo failed:', err);
     return undefined;
   }
   if (!info) return undefined;
@@ -288,7 +289,7 @@ export const extractRevenueCatPurchaseCommerce = async (
       }
     } catch (err) {
        
-      console.warn('[rheo] RevenueCat getOfferings failed:', err);
+      getSdkLogger().warn('[rheo] RevenueCat getOfferings failed:', err);
     }
   }
 
@@ -363,7 +364,7 @@ export const presentRevenueCatPaywall = async (
     // We deliberately do not throw — the runtime advances on `failed` so
     // a missing host integration doesn't permanently stall the flow.
      
-    console.warn(`[rheo] ${err.message}`);
+    getSdkLogger().warn(`[rheo] ${err.message}`);
     return {
       outcome: 'failed',
       sdkKeyPatch: { ...baseKeyPatch, onb_rc_last_event: 'failed' },
@@ -419,7 +420,7 @@ export const presentRevenueCatPaywall = async (
     };
   } catch (err) {
      
-    console.warn('[rheo] RevenueCat paywall failed:', err);
+    getSdkLogger().warn('[rheo] RevenueCat paywall failed:', err);
     return {
       outcome: 'failed',
       sdkKeyPatch: { ...baseKeyPatch, onb_rc_last_event: 'failed' },

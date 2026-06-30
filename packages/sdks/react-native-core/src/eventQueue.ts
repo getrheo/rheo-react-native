@@ -1,5 +1,6 @@
 import { SDK_EVENT_FLUSH_MS, type SdkEvent } from '@getrheo/contracts';
 import { buildSdkEvent, type SdkEventBuildConfig, type TrackEventInput } from './events';
+import { createSdkLogger, type SdkLogger } from './logging/sdkLogger';
 
 /** Server-side cap (matches `SdkEventBatchSchema.events.max(500)`). When a
  * single batch would exceed this, the queue flushes early and starts a
@@ -14,9 +15,7 @@ const TERMINAL_EVENTS: ReadonlySet<SdkEvent['name']> = new Set([
   'flow_abandoned',
 ]);
 
-type Logger = {
-  warn: (msg: string, meta?: unknown) => void;
-};
+type Logger = SdkLogger;
 
 export type EventQueueTransport = {
   publishableKey: string;
@@ -45,7 +44,7 @@ type BufferedItem = {
  * multiple POSTs.
  *
  * Failed POSTs drop the batch and log via the configured logger
- * (default `console.warn`). The queue is intentionally non-persistent —
+ * (default silent). The queue is intentionally non-persistent —
  * the plan deferred AsyncStorage-backed persistence to a follow-up.
  */
 export class EventQueue {
@@ -57,7 +56,7 @@ export class EventQueue {
   constructor(
     private readonly transport: EventQueueTransport,
     private readonly getSdkEventBuildConfig: () => SdkEventBuildConfig,
-    private readonly logger: Logger = console,
+    private readonly logger: Logger = createSdkLogger('silent'),
   ) {}
 
   /** Enqueue an event. Schedules the next flush if one isn't pending. */

@@ -2,6 +2,11 @@ import { RHEO_DEFAULT_SDK_API_BASE_URL } from '@getrheo/contracts/sdk';
 import { useMemo } from 'react';
 import { useRheo } from '../client.js';
 import type { RheoConfig } from '../client.js';
+import {
+  getSdkLogger,
+  getSdkLogLevel,
+  isSdkDevDiagnosticsEnabled,
+} from '../logging/sdkLogger.js';
 import { resolveManifest } from '../resolve/resolveManifest.js';
 import { resolveAllManifests } from '../resolve/resolveAllManifests.js';
 
@@ -66,8 +71,8 @@ const resolvePrefetchConfig = (
   options?: PrefetchOptions,
 ): RheoConfig | null => {
   const cfg = options?.config ?? registeredConfig;
-  if (!cfg && typeof __DEV__ !== 'undefined' && __DEV__) {
-    console.warn(
+  if (!cfg && isSdkDevDiagnosticsEnabled(getSdkLogLevel())) {
+    getSdkLogger().debug(
       `[rheo] ${fn} called without RheoProvider mounted and no \`config\` override — ignored.`,
     );
   }

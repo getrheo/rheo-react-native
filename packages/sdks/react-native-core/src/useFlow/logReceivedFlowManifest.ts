@@ -1,10 +1,11 @@
 import type { SdkResolveResponse } from '@getrheo/contracts';
+import { getSdkLogLevel, isSdkDevDiagnosticsEnabled } from '../logging/sdkLogger';
 
 const logRule = (): string => '─'.repeat(58);
 
 /** Dev-only: pretty-print the resolved flow manifest in Metro / device logs. */
 export const logReceivedFlowManifest = (data: SdkResolveResponse): void => {
-  if (typeof __DEV__ === 'undefined' || !__DEV__) return;
+  if (!isSdkDevDiagnosticsEnabled(getSdkLogLevel())) return;
 
   const {
     manifest,

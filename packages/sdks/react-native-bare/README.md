@@ -5,7 +5,7 @@ Bare React Native entry for the Rheo SDK. Re-exports `@getrheo/react-native-core
 ## Install
 
 ```bash
-pnpm add @getrheo/react-native-bare@2.0.3 \
+pnpm add @getrheo/react-native-bare@2.1.0 \
   react react-native \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \

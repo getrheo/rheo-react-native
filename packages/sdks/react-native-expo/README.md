@@ -224,7 +224,7 @@ Requesting authorization is separate from registering for remote push tokens; to
 One install — all peers are **required** for the Expo flavor (no optional meta). **`@react-native-community/slider`** ships as a direct dependency of core.
 
 ```bash
-pnpm add @getrheo/react-native-expo@2.0.3 \
+pnpm add @getrheo/react-native-expo@2.1.0 \
   react react-native \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \

@@ -1,4 +1,5 @@
-import { RHEO_DEFAULT_SDK_API_BASE_URL } from '@getrheo/contracts/sdk';
+import { DEFAULT_SDK_LOG_LEVEL, RHEO_DEFAULT_SDK_API_BASE_URL } from '@getrheo/contracts/sdk';
+import type { SdkLogLevel } from '@getrheo/contracts/sdk';
 import {
   createContext,
   createElement,
@@ -12,6 +13,7 @@ import {
 import type {ReactNode} from 'react';
 import { EventQueue } from './eventQueue';
 import type {SdkEventBuildConfig} from './events';
+import { createSdkLogger, registerSdkLogLevel } from './logging/sdkLogger';
 import type {AttributionRuntimeProvider, AttributionStorageAdapter, } from './attribution/attributionTypes';
 import {
   __prefetchAllWithConfig,
@@ -79,6 +81,7 @@ const Ctx = createContext<RheoCtxValue | null>(null);
 export const RheoProvider = ({
   config,
   prefetch,
+  logLevel = DEFAULT_SDK_LOG_LEVEL,
   children,
 }: {
   config: RheoConfig;
@@ -89,6 +92,12 @@ export const RheoProvider = ({
    * Best-effort and silent — the mounted `Flow` still owns error/retry UI.
    */
   prefetch?: 'all' | string[];
+  /**
+   * SDK console diagnostics verbosity. Defaults to `silent` (no logs in production).
+   * Use `warn` for transport/integration failures; `debug` enables dev-only
+   * manifest dumps and misuse hints (requires a dev build).
+   */
+  logLevel?: SdkLogLevel;
   children: ReactNode;
 }) => {
   const resolvedConfig = useMemo<RheoConfig>(
@@ -120,6 +129,13 @@ export const RheoProvider = ({
     }),
     [resolvedConfig, customUserIdRuntime],
   );
+
+  useEffect(() => {
+    registerSdkLogLevel(logLevel);
+    return () => {
+      registerSdkLogLevel(DEFAULT_SDK_LOG_LEVEL);
+    };
+  }, [logLevel]);
 
   // Register the active config so the standalone `prefetch` / `prefetchAll`
   // helpers work outside the React tree (navigation listeners, push handlers).
@@ -184,8 +200,8 @@ export const RheoProvider = ({
   // Queue is stable across customUserId changes; identity for events is read at flush via sdkEventSnap.
   const queue = useMemo(
     () =>
-      new EventQueue(transport, () => sdkEventSnap.current),
-    [transport.publishableKey, transport.apiBaseUrl, transport.fetcher],
+      new EventQueue(transport, () => sdkEventSnap.current, createSdkLogger(logLevel)),
+    [transport.publishableKey, transport.apiBaseUrl, transport.fetcher, logLevel],
   );
 
   // Best-effort flush when the provider unmounts (host shut down,
