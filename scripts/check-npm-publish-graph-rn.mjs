@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { checkPublishDistImports } from './check-publish-dist-imports.mjs';
 
 const repoRoot = join(new URL('.', import.meta.url).pathname, '..');
 
@@ -27,6 +28,8 @@ for (const { name, dir } of PUBLISH_PACKAGES) {
     errors.push(`${name}: dist/index.js missing — run pnpm build`);
   }
 }
+
+errors.push(...checkPublishDistImports(repoRoot, PUBLISH_PACKAGES));
 
 if (errors.length > 0) {
   console.error('npm publish graph check failed:');

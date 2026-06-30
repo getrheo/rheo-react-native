@@ -5,7 +5,7 @@ Bare React Native entry for the Rheo SDK. Re-exports `@getrheo/react-native-core
 ## Install
 
 ```bash
-pnpm add @getrheo/react-native-bare \
+pnpm add @getrheo/react-native-bare@2.0.3 \
   react react-native \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \
@@ -22,5 +22,7 @@ Complete native setup for permissions (Info.plist / AndroidManifest) per [react-
 Same API as the Expo flavor (`Flow`, `RheoProvider`, `useFlow`, …). See [`react-native-expo/README.md`](../react-native-expo/README.md) for flow semantics, events, terminal payloads, and production **`apiBaseUrl`** guidance — import from `@getrheo/react-native-bare` instead.
 
 ## Example
+
+Runnable sample app: [getrheo/rheo-example-bare](https://github.com/getrheo/rheo-example-bare) (private monorepo copy: [`apps/example-bare`](../../../apps/example-bare)).
 
 See the [SDK developer guide](https://docs.getrheo.io/docs/developer-guide/sdk) for integration steps.

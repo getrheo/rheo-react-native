@@ -224,7 +224,7 @@ Requesting authorization is separate from registering for remote push tokens; to
 One install — all peers are **required** for the Expo flavor (no optional meta). **`@react-native-community/slider`** ships as a direct dependency of core.
 
 ```bash
-pnpm add @getrheo/react-native-expo \
+pnpm add @getrheo/react-native-expo@2.0.3 \
   react react-native \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \
@@ -237,5 +237,7 @@ pnpm add @getrheo/react-native-expo \
 **Branding fonts:** use `buildBrandingFontLoadMap(branding)` from this package, then register faces with `expo-font` or linked assets.
 
 ## Runnable example
+
+Runnable sample app: [getrheo/rheo-example-expo](https://github.com/getrheo/rheo-example-expo) (private monorepo copy: [`apps/example-expo`](../../../apps/example-expo)).
 
 See the [SDK developer guide](https://docs.getrheo.io/docs/developer-guide/sdk) for integration steps and production configuration.
