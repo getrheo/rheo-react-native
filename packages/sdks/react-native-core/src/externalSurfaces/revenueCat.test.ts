@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { registerSdkLogLevel } from '../logging/sdkLogger';
 import {
   __setRevenueCatModuleForTests,
   __setRevenueCatPurchasesModuleForTests,
@@ -45,9 +46,11 @@ describe('presentRevenueCatPaywall', () => {
   afterEach(() => {
     restore?.();
     restore = null;
+    registerSdkLogLevel('silent');
   });
 
   it('falls back to `failed` when react-native-purchases-ui is not installed', async () => {
+    registerSdkLogLevel('warn');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     restore = __setRevenueCatModuleForTests(null);
     const result = await presentRevenueCatPaywall({
@@ -101,6 +104,7 @@ describe('extractRevenueCatPurchaseCommerce', () => {
   afterEach(() => {
     restorePurchases?.();
     restorePurchases = null;
+    registerSdkLogLevel('silent');
   });
 
   it('returns undefined when react-native-purchases is not installed', async () => {
@@ -183,6 +187,7 @@ describe('extractRevenueCatPurchaseCommerce', () => {
   });
 
   it('falls back gracefully when getCustomerInfo throws', async () => {
+    registerSdkLogLevel('warn');
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     restorePurchases = __setRevenueCatPurchasesModuleForTests({
       getCustomerInfo: () => Promise.reject(new Error('rc down')),

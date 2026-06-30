@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SDK_EVENT_FLUSH_MS, SdkEventBatchSchema } from '@getrheo/contracts';
 import { type SdkEventBuildConfig, type TrackEventInput } from './events';
 import { EventQueue } from './eventQueue';
+import { createSdkLogger } from './logging/sdkLogger';
 
 const baseSnap: SdkEventBuildConfig = {
   userId: 'user-1',
@@ -152,6 +153,29 @@ describe('EventQueue', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it('default silent logger does not warn on fetch errors', async () => {
+    const fetcher = vi.fn(async () => {
+      throw new Error('network down');
+    });
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const q = makeQueue(fetcher as unknown as typeof fetch, undefined, createSdkLogger('silent'));
+    q.enqueue(completeEvent, { channelId: CH_A });
+    await vi.runAllTimersAsync();
+    await Promise.resolve();
+    expect(consoleWarn).not.toHaveBeenCalled();
+    consoleWarn.mockRestore();
+  });
+
+  it('warns on missing channelId when logger level is warn', () => {
+    const warn = vi.fn();
+    const q = makeQueue(vi.fn() as unknown as typeof fetch, undefined, { warn, debug: vi.fn() });
+    q.enqueue(startEvent, { channelId: '  ' });
+    expect(warn).toHaveBeenCalledWith(
+      '[rheo] enqueue skipped: missing channelId',
+      expect.objectContaining({ name: 'flow_started' }),
+    );
+  });
+
   it('swallows fetch errors and warns', async () => {
     const fetcher = vi.fn(async () => {
       throw new Error('network down');
@@ -159,6 +183,7 @@ describe('EventQueue', () => {
     const warn = vi.fn();
     const q = makeQueue(fetcher as unknown as typeof fetch, undefined, {
       warn,
+      debug: vi.fn(),
     });
     q.enqueue(completeEvent, { channelId: CH_A });
     await vi.runAllTimersAsync();

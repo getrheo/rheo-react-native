@@ -8,6 +8,7 @@ export {
   RheoChannelRequiredError,
 } from './client';
 export type {RheoConfig, RheoCustomUserIdControls, RheoAttributionConfig} from './client';
+export { DEFAULT_SDK_LOG_LEVEL, type SdkLogLevel } from '@getrheo/contracts/sdk';
 export { useRheoPrefetch, prefetch, prefetchAll } from './prefetch';
 export type {RheoPrefetchControls, PrefetchOptions} from './prefetch';
 export {

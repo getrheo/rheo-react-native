@@ -1,4 +1,5 @@
 import type { OsPermissionKey, PermissionOutcome } from '@getrheo/contracts';
+import { getSdkLogger, isSdkDevDiagnosticsEnabled, getSdkLogLevel } from '../logging/sdkLogger';
 import { executeBuiltInNotificationPermission } from './builtInNotificationPermission';
 import {
   executeBuiltInCalendarPermission,
@@ -33,8 +34,8 @@ export const runBuiltInOsPermissionIfAvailable = async (
       ? sessionPlatform
       : 'web';
   if (platform === 'web') {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.warn(
+    if (isSdkDevDiagnosticsEnabled(getSdkLogLevel())) {
+      getSdkLogger().debug(
         `[@getrheo/react-native-core] request_os_permission (${permissionKey}) on web has no OS prompt; using denied.`,
       );
     }
@@ -43,8 +44,8 @@ export const runBuiltInOsPermissionIfAvailable = async (
 
   const handler = builtInHandlers[permissionKey];
   if (!handler) {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.warn(
+    if (isSdkDevDiagnosticsEnabled(getSdkLogLevel())) {
+      getSdkLogger().debug(
         `[@getrheo/react-native-core] No built-in handler for "${permissionKey}"; using denied until SDK adds support.`,
       );
     }
