@@ -14,6 +14,8 @@ import { resolveLocalizedText } from '@getrheo/contracts';
 import { isEligibleConsumedDraft, type ConsumedDraftPayload } from '@getrheo/flow-runtime/stateMachine';
 import {
   DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX,
+  findInputLayer,
+  resolveAndInterpolateLocalizedText,
   resolveButtonLayoutAtWidth,
   resolveButtonStyleAtWidth,
   resolveLayerGap,
@@ -65,6 +67,7 @@ const ButtonTextChild = ({
     ctx.manifest.theme,
     ctx.theme,
     ctx.branding,
+    ctx.fontScale,
   );
   const textPair = commonViewStylePair(
     stripCommonLayoutForInner(childResolved),
@@ -72,6 +75,14 @@ const ButtonTextChild = ({
     ctx.theme,
     ctx.branding,
   );
+  const display = ctx.interpolationContext
+    ? resolveAndInterpolateLocalizedText(child.text, {
+        manifest: ctx.manifest,
+        locale: ctx.locale,
+        responses: ctx.interpolationContext.responses,
+        customProperties: ctx.interpolationContext.customProperties,
+      })
+    : resolveLocalizedText(child.text, ctx.locale);
   return (
     <ChromeView
       style={{
@@ -83,7 +94,7 @@ const ButtonTextChild = ({
       }}
       linearGradient={textPair.linearGradient}
     >
-      <Text style={merged}>{resolveLocalizedText(child.text, ctx.locale)}</Text>
+      <Text style={merged}>{display}</Text>
     </ChromeView>
   );
 };
@@ -139,7 +150,10 @@ export const ButtonView = ({
     }
     if (layer.action.kind === 'none') return;
     if (layer.action.kind === 'continue') {
-      const primary = draftCtx?.toResponse() ?? { kind: 'cta', action: 'primary' };
+      const drafted = draftCtx?.toResponse() ?? null;
+      const primary =
+        drafted ?? (findInputLayer(ctx.screen) ? null : { kind: 'cta', action: 'primary' as const });
+      if (!primary) return;
       const snap = checkboxAck?.snapshotValues() ?? {};
       if (Object.keys(snap).length > 0) {
         ctx.onRespond?.({ kind: 'screen_commit', primary, checkboxValues: snap });
@@ -178,10 +192,18 @@ export const ButtonView = ({
       runOnJS(handlePress)();
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.97]) }],
-    opacity: interpolate(pressed.value, [0, 1], [1, 0.85]),
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    if (disabled && ctx.interactive) {
+      return {
+        transform: [{ scale: 1 }],
+        opacity: 0.5,
+      };
+    }
+    return {
+      transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.97]) }],
+      opacity: interpolate(pressed.value, [0, 1], [1, 0.85]),
+    };
+  }, [disabled, ctx.interactive]);
 
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const layout = resolveButtonLayoutAtWidth(layer, w);
@@ -222,7 +244,6 @@ export const ButtonView = ({
     justifyContent: justifyFor(layer.distribution) ?? 'center',
     ...buttonChromeLayoutStyle(btnResolved, ctx.parentStackDirection),
     ...btnPair.style,
-    opacity: disabled && ctx.interactive ? 0.5 : undefined,
   };
   const buttonChildCtx: Ctx = {
     ...ctx,
@@ -295,10 +316,18 @@ export const BackButtonView = ({
       runOnJS(handlePress)();
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.97]) }],
-    opacity: interpolate(pressed.value, [0, 1], [1, 0.85]),
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    if (disabled && ctx.interactive) {
+      return {
+        transform: [{ scale: 1 }],
+        opacity: 0.5,
+      };
+    }
+    return {
+      transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.97]) }],
+      opacity: interpolate(pressed.value, [0, 1], [1, 0.85]),
+    };
+  }, [disabled, ctx.interactive]);
 
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const layout = resolveButtonLayoutAtWidth(layer, w);
@@ -339,7 +368,6 @@ export const BackButtonView = ({
     justifyContent: justifyFor(layer.distribution) ?? 'center',
     ...buttonChromeLayoutStyle(btnResolved, ctx.parentStackDirection),
     ...btnPair.style,
-    opacity: disabled && ctx.interactive ? 0.5 : undefined,
   };
   const buttonChildCtx: Ctx = {
     ...ctx,

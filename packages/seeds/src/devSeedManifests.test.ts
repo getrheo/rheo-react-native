@@ -4,10 +4,11 @@ import { collectCanvasGateViolations, parseCanvasEditorGates } from '@getrheo/co
 import type { FlowManifest } from '@getrheo/contracts/manifest';
 import { collectFlowBuilderIssues } from '@getrheo/flow-runtime/flowBuilderRules';
 import { validateManifest, validatePublishable } from '@getrheo/flow-runtime/validation';
-import { buildAnimationLabManifest } from './animationLabManifest';
+import { buildAnimationStressHarnessManifest } from './animationStressHarnessManifest';
 import { buildAuthCanvasManifest } from './authCanvasManifest';
 import { buildPaywallManifest } from './paywallManifest';
-import { buildStressHarnessManifest } from './stressHarnessManifest';
+import { buildPiedPiperOnboardingManifest } from './piedPiperOnboardingManifest';
+import { buildLayerStressHarnessManifest } from './stressHarnessManifest';
 import { buildWelcomeLinearManifest } from './welcomeLinearManifest';
 
 const expectSeedManifestHealthy = (m: FlowManifest): void => {
@@ -30,17 +31,19 @@ describe('dev seed manifests', () => {
     expectSeedManifestHealthy(m);
   });
 
-  it('parses stress harness', () => {
+  it('parses layer stress harness', () => {
     const id = randomUUID();
-    const m = buildStressHarnessManifest(id);
+    const m = buildLayerStressHarnessManifest(id);
     expect(m.entryScreenId).toBe('scr_sh_entry');
+    expect(m.screens.length).toBeGreaterThan(50);
     expectSeedManifestHealthy(m);
   });
 
-  it('parses animation lab', () => {
+  it('parses animation stress harness', () => {
     const id = randomUUID();
-    const m = buildAnimationLabManifest(id);
-    expect(m.entryScreenId).toBe('scr_al_0');
+    const m = buildAnimationStressHarnessManifest(id);
+    expect(m.entryScreenId).toBe('scr_ash_entry');
+    expect(m.screens.length).toBeGreaterThan(15);
     expectSeedManifestHealthy(m);
   });
 
@@ -54,6 +57,19 @@ describe('dev seed manifests', () => {
   it('parses RevenueCat paywall seed flow', () => {
     const id = randomUUID();
     const m = buildPaywallManifest(id);
+    expect(m.externalSurfaceNodes?.[0]?.config).toMatchObject({
+      provider: 'revenuecat',
+      offeringId: 'default',
+    });
+    expectSeedManifestHealthy(m);
+  });
+
+  it('parses Pied Piper onboarding seed flow', () => {
+    const id = randomUUID();
+    const m = buildPiedPiperOnboardingManifest(id);
+    expect(m.flowId).toBe(id);
+    expect(m.entryScreenId).toBe('scr_welcome');
+    expect(m.screens).toHaveLength(11);
     expect(m.externalSurfaceNodes?.[0]?.config).toMatchObject({
       provider: 'revenuecat',
       offeringId: 'default',

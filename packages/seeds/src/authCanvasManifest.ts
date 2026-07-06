@@ -138,6 +138,7 @@ export const buildAuthCanvasManifest = (flowId: string): FlowManifest =>
               mode: 'sign_in',
               fieldKey: 'auth_canvas_signin',
               gap: 8,
+              style: { width: 'full', height: 'fill' },
               children: [
                 {
                   id: 'lyr_ac_si_em',
@@ -155,6 +156,10 @@ export const buildAuthCanvasManifest = (flowId: string): FlowManifest =>
                   id: 'lyr_ac_si_sub',
                   kind: 'email_password_submit',
                   buttonVariant: 'primary',
+                  direction: 'horizontal',
+                  align: 'center',
+                  distribution: 'center',
+                  style: { width: 'full', height: 'auto' },
                   children: [
                     {
                       id: 'lyr_ac_si_st',
@@ -182,6 +187,7 @@ export const buildAuthCanvasManifest = (flowId: string): FlowManifest =>
               mode: 'sign_up',
               fieldKey: 'auth_canvas_signup',
               gap: 8,
+              style: { width: 'full', height: 'fill' },
               children: [
                 {
                   id: 'lyr_ac_su_em',
@@ -205,6 +211,10 @@ export const buildAuthCanvasManifest = (flowId: string): FlowManifest =>
                   id: 'lyr_ac_su_sub',
                   kind: 'email_password_submit',
                   buttonVariant: 'primary',
+                  direction: 'horizontal',
+                  align: 'center',
+                  distribution: 'center',
+                  style: { width: 'full', height: 'auto' },
                   children: [
                     {
                       id: 'lyr_ac_su_st',

@@ -2,6 +2,8 @@ import { createElement, type ComponentType, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { buildAuthCanvasManifest } from '@rheo/seeds';
 import type { EmailPasswordAuthLayer } from '@getrheo/contracts';
+import type { BrandGradient, Branding } from '@getrheo/contracts/branding';
+import { BRAND_GRADIENT_PREFIX } from '@getrheo/flow-runtime';
 import { EmailPasswordAuthProvider } from '../../../emailPasswordAuth';
 import { EmailPasswordAuthView } from './EmailPasswordAuthView';
 import { ChoicePressable, type Ctx, type RenderLayer } from '../../LayerRendererShared';
@@ -75,7 +77,11 @@ vi.mock('react-native', async () => {
     View: passthrough('View'),
     TextInput: passthrough('TextInput'),
     ActivityIndicator: passthrough('ActivityIndicator'),
-    StyleSheet: { hairlineWidth: 1 },
+    StyleSheet: {
+      create: (s: Record<string, unknown>) => s,
+      absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+      hairlineWidth: 1,
+    },
   };
 });
 
@@ -100,6 +106,31 @@ const smokeCtx = (overrides?: Partial<Ctx>): Ctx => ({
 });
 
 const noopRender: RenderLayer = () => null;
+
+const brandGradientPreset: BrandGradient = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'G1',
+  type: 'linear',
+  angle: 90,
+  stops: [
+    { color: '#ff0000', offset: 0 },
+    { color: '#0000ff', offset: 1 },
+  ],
+};
+
+const brandGradientBranding: Branding = {
+  gradientPresets: [brandGradientPreset],
+  colorPresets: [],
+  fontFamilies: [],
+};
+
+const brandGradientToken = `${BRAND_GRADIENT_PREFIX}${brandGradientPreset.id}`;
+
+const flattenStyle = (style: unknown): Record<string, unknown> => {
+  if (!style) return {};
+  if (Array.isArray(style)) return Object.assign({}, ...style.filter(Boolean));
+  return style as Record<string, unknown>;
+};
 
 describe('EmailPasswordAuthView smoke', () => {
   it('renders TextInput fields for email and password slots', async () => {
@@ -180,6 +211,31 @@ describe('EmailPasswordAuthView smoke', () => {
         success: true,
       }),
     );
+    tree?.unmount();
+  });
+});
+
+describe('EmailPasswordAuthView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer wrap when email_password_auth layer style uses a brand gradient', async () => {
+    const layer: EmailPasswordAuthLayer = {
+      ...emailLayer(),
+      style: { background: brandGradientToken, radius: 12, width: 'full' },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(EmailPasswordAuthProvider, {
+          respond: () => undefined,
+          children: createElement(EmailPasswordAuthView, {
+            layer,
+            ctx: smokeCtx({ branding: brandGradientBranding, parentStackDirection: 'vertical' }),
+            renderLayer: noopRender,
+          }),
+        }),
+      );
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
     tree?.unmount();
   });
 });

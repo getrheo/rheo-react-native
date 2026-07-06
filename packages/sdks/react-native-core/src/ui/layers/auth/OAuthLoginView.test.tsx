@@ -3,10 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildAuthCanvasManifest } from '@rheo/seeds';
 import { oauthPresetEffectiveLabel } from '@getrheo/contracts';
 import type { OAuthLoginLayer } from '@getrheo/contracts';
+import type { BrandGradient, Branding } from '@getrheo/contracts/branding';
+import { BRAND_GRADIENT_PREFIX } from '@getrheo/flow-runtime';
 import { OAuthLoginProvider } from '../../../oauthLogin';
 import { OAuthLoginView } from './OAuthLoginView';
 import { ChoicePressable, type Ctx, type RenderLayer } from '../../LayerRendererShared';
 
+type TestNode = { props: Record<string, unknown> };
 type ReactTestRenderer = {
   root: {
     findAllByType: (type: string | ComponentType) => Array<{ props: Record<string, unknown> }>;
@@ -76,7 +79,11 @@ vi.mock('react-native', async () => {
     Text: passthrough('Text'),
     View: passthrough('View'),
     ActivityIndicator: passthrough('ActivityIndicator'),
-    StyleSheet: { hairlineWidth: 1 },
+    StyleSheet: {
+      create: (s: Record<string, unknown>) => s,
+      absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+      hairlineWidth: 1,
+    },
   };
 });
 
@@ -106,6 +113,31 @@ const smokeCtx = (overrides?: Partial<Ctx>): Ctx => ({
 
 const noopRender: RenderLayer = () => null;
 
+const brandGradientPreset: BrandGradient = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'G1',
+  type: 'linear',
+  angle: 90,
+  stops: [
+    { color: '#ff0000', offset: 0 },
+    { color: '#0000ff', offset: 1 },
+  ],
+};
+
+const brandGradientBranding: Branding = {
+  gradientPresets: [brandGradientPreset],
+  colorPresets: [],
+  fontFamilies: [],
+};
+
+const brandGradientToken = `${BRAND_GRADIENT_PREFIX}${brandGradientPreset.id}`;
+
+const flattenStyle = (style: unknown): Record<string, unknown> => {
+  if (!style) return {};
+  if (Array.isArray(style)) return Object.assign({}, ...style.filter(Boolean));
+  return style as Record<string, unknown>;
+};
+
 describe('OAuthLoginView smoke', () => {
   it('renders preset row labels', async () => {
     const layer = oauthLayer();
@@ -130,6 +162,23 @@ describe('OAuthLoginView smoke', () => {
     tree?.unmount();
   });
 
+  it('left-aligns preset rows when oauth_login align is omitted', async () => {
+    const layer = oauthLayer();
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(OAuthLoginProvider, {
+          respond: () => undefined,
+          children: createElement(OAuthLoginView, { layer, ctx: smokeCtx(), renderLayer: noopRender }),
+        }),
+      );
+    });
+    const first = tree!.root.findAllByType(ChoicePressable as ComponentType)[0];
+    if (!first) throw new Error('expected ChoicePressable');
+    expect(flattenStyle(first.props.style).alignSelf).toBe('flex-start');
+    tree?.unmount();
+  });
+
   it('dispatches tap through provider respond', async () => {
     const respond = vi.fn();
     const layer = oauthLayer();
@@ -150,6 +199,31 @@ describe('OAuthLoginView smoke', () => {
     expect(respond).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'oauth_login_resolve', layerId: layer.id }),
     );
+    tree?.unmount();
+  });
+});
+
+describe('OAuthLoginView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer wrap when oauth_login layer style uses a brand gradient', async () => {
+    const layer: OAuthLoginLayer = {
+      ...oauthLayer(),
+      style: { background: brandGradientToken, radius: 12, width: 'full' },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(OAuthLoginProvider, {
+          respond: () => undefined,
+          children: createElement(OAuthLoginView, {
+            layer,
+            ctx: smokeCtx({ branding: brandGradientBranding, parentStackDirection: 'vertical' }),
+            renderLayer: noopRender,
+          }),
+        }),
+      );
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
     tree?.unmount();
   });
 });

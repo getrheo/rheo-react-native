@@ -4,6 +4,7 @@ import type { Border, ButtonStyle, CommonStyle, ImageStyle as LayerImageStyle, P
 import type {BrandGradientNativeLinear} from '@getrheo/flow-runtime';
 import { DEFAULT_THEMED_FOREGROUND } from '@getrheo/contracts';
 import { nativeBrandBackgroundFromThemedColor, resolveThemedColor, buttonVariantChromeForTheme, multiplyColorAlpha, resolveNativeTextFontFamilyName, TEXT_FONT_FAMILY_SYSTEM_UI } from '@getrheo/flow-runtime';
+import { scaleAuthoredFontSize } from '@getrheo/renderer-core';
 import type { ButtonLayerVariant } from '@getrheo/contracts';
 import { dropShadowToNativeStyle } from '@getrheo/flow-runtime';
 import type {ImageStyle as RNImageStyle, TextStyle as RNTextStyle, ViewStyle as RNViewStyle, } from 'react-native';
@@ -37,6 +38,8 @@ export type TextLayerStyleOptions = {
   inheritDocumentForeground?: boolean;
   /** When set, custom branding fonts resolve to native-linked face names. */
   branding?: Branding;
+  /** System text scale (`useWindowDimensions().fontScale`); default 1. */
+  fontScale?: number;
 };
 
 /**
@@ -177,14 +180,16 @@ export const textLayerStyle = (
   else if (theme?.fontFamily?.trim()) logical = theme.fontFamily.trim();
   else logical = undefined;
   const fontFamily = resolveNativeTextFontFamilyName(options?.branding, logical, s.fontWeight);
+  const fontScale = options?.fontScale ?? 1;
+  const fontSize = scaleAuthoredFontSize(s.fontSize, fontScale);
   return omitUndefinedStyleKeys({
     fontFamily,
-    fontSize: s.fontSize,
+    fontSize,
     fontWeight: s.fontWeight ? (String(s.fontWeight) as RNTextStyle['fontWeight']) : undefined,
     color: resolveThemedColor(theme, palette, colorInput) as string | undefined,
     textAlign: s.align,
     lineHeight:
-      s.lineHeight && s.fontSize ? s.lineHeight * s.fontSize : undefined,
+      s.lineHeight && fontSize ? s.lineHeight * fontSize : undefined,
   });
 };
 
@@ -192,10 +197,11 @@ export const buttonContentStyle = (
   s: ButtonStyle | undefined,
   theme: Theme | undefined,
   palette: 'light' | 'dark',
+  fontScale = 1,
 ): RNTextStyle => {
   if (!s) return {};
   return omitUndefinedStyleKeys({
-    fontSize: s.fontSize,
+    fontSize: scaleAuthoredFontSize(s.fontSize, fontScale),
     fontWeight: s.fontWeight ? (String(s.fontWeight) as RNTextStyle['fontWeight']) : undefined,
     color: resolveThemedColor(theme, palette, s.color) as string | undefined,
     textAlign: s.align,
@@ -317,15 +323,16 @@ export const mergeButtonInlineLabelStyle = (
   theme: Theme | undefined,
   paletteMode: 'light' | 'dark',
   branding?: Branding,
+  fontScale = 1,
 ): RNTextStyle => {
   const defaults: RNTextStyle = {
-    fontSize: 13,
+    fontSize: scaleAuthoredFontSize(13, fontScale),
     fontWeight: '600',
     textAlign: 'center',
     color: palette.color,
   };
-  const btnS = buttonContentStyle(buttonStyle, theme, paletteMode);
-  const textS = textLayerStyle(textStyle, theme, paletteMode, { branding });
+  const btnS = buttonContentStyle(buttonStyle, theme, paletteMode, fontScale);
+  const textS = textLayerStyle(textStyle, theme, paletteMode, { branding, fontScale });
   const pickDefined = (o: RNTextStyle): RNTextStyle => {
     const out: RNTextStyle = {};
     for (const [k, v] of Object.entries(o)) {

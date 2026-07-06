@@ -1,9 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SdkEventSchema } from '@getrheo/contracts';
+
+const asyncStorageState = vi.hoisted(() => ({
+  store: new Map<string, string>(),
+}));
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: async (key: string) => asyncStorageState.store.get(key) ?? null,
+    setItem: async (key: string, value: string) => {
+      asyncStorageState.store.set(key, value);
+    },
+    removeItem: async (key: string) => {
+      asyncStorageState.store.delete(key);
+    },
+  },
+}));
+
 import {
   buildSdkEvent,
   generateEventId,
   getResolvedAppUserId,
+  hydrateResolvedAppUserIdFromStorage,
   PERSISTED_APP_USER_ID_KEY,
   __resetResolvedAppUserIdForTests,
 } from './events';
@@ -11,6 +29,7 @@ import type {RheoConfig} from './client';
 
 beforeEach(() => {
   __resetResolvedAppUserIdForTests();
+  asyncStorageState.store.clear();
 });
 
 afterEach(() => {
@@ -61,6 +80,19 @@ describe('getResolvedAppUserId', () => {
     const second = getResolvedAppUserId({});
     expect(first).toBe(second);
     expect(store.has(PERSISTED_APP_USER_ID_KEY)).toBe(true);
+  });
+
+  it('persists via AsyncStorage on native when userId is omitted', async () => {
+    vi.stubGlobal('HermesInternal', {});
+    const first = getResolvedAppUserId({});
+    await hydrateResolvedAppUserIdFromStorage();
+    const second = getResolvedAppUserId({});
+    expect(first).toBe(second);
+    expect(asyncStorageState.store.get(PERSISTED_APP_USER_ID_KEY)).toBe(first);
+    __resetResolvedAppUserIdForTests();
+    asyncStorageState.store.set(PERSISTED_APP_USER_ID_KEY, 'persisted-native-id');
+    await hydrateResolvedAppUserIdFromStorage();
+    expect(getResolvedAppUserId({})).toBe('persisted-native-id');
   });
 });
 

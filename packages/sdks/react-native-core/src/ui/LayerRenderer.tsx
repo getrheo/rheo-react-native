@@ -169,7 +169,7 @@ export const LayerRenderer = ({
   onHyperlinkOpened,
   branding,
 }: LayerRendererProps) => {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, fontScale } = useWindowDimensions();
   const safeAreaInsets = useSafeAreaInsets();
   const ctx: Ctx = {
     manifest,
@@ -184,6 +184,7 @@ export const LayerRenderer = ({
     interpolationContext,
     previewWidthPx: windowWidth,
     branding,
+    fontScale,
   };
   // Inputs lookup is only used to keep the screen-input draft in lockstep
   // with the rendered screen — useFlow already drives draft resets via
@@ -252,7 +253,7 @@ export const LayerRenderer = ({
               ...(shellUsesMediaBackdrop ? { backgroundColor: 'transparent' } : {}),
             }}
             contentContainerStyle={{ flexGrow: 1, minHeight: '100%' }}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="never"
             nestedScrollEnabled
           >
             <View style={{ flex: 1, width: '100%', minHeight: '100%' }}>

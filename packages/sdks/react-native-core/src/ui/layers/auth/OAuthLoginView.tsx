@@ -49,7 +49,8 @@ export const OAuthLoginView = ({
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const gap = resolveLayerGap(layer.kind, layer.gap);
-  const alignSelf = oauthAlignToNative(rendererOAuthLoginAlignAxis(layer.align));
+  const alignAxis = rendererOAuthLoginAlignAxis(layer.align);
+  const alignSelf = oauthAlignToNative(alignAxis);
   const muted = ctx.theme === 'dark' ? '#a1a1aa' : '#52525b';
 
   const outerPair = commonViewStylePair(
@@ -63,6 +64,7 @@ export const OAuthLoginView = ({
     alignSelf,
     gap,
     ...outerPair.style,
+    ...(outerPair.linearGradient ? { overflow: 'hidden' } : {}),
   };
 
   return (
@@ -92,8 +94,8 @@ export const OAuthLoginView = ({
             alignItems: 'center',
             justifyContent: 'center',
             gap: 10,
-            width: layer.align === 'stretch' ? '100%' : widthFor(resolvedChrome?.width),
-            alignSelf: layer.align === 'stretch' ? 'stretch' : 'center',
+            width: alignAxis === 'stretch' ? '100%' : widthFor(resolvedChrome?.width),
+            alignSelf: oauthAlignToNative(alignAxis),
             borderRadius: resolvedChrome?.radius ?? 10,
             ...oauthChromePaddingNative(resolvedChrome?.padding),
             ...oauthChromeMarginNative(resolvedChrome?.margin),
@@ -238,6 +240,7 @@ export const OAuthLoginView = ({
                     ctx.manifest.theme,
                     ctx.theme,
                     ctx.branding,
+                    ctx.fontScale,
                   );
                   const textPair = commonViewStylePair(
                     stripCommonLayoutForInner(childResolved),

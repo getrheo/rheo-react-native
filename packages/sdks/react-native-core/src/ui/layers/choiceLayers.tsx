@@ -2,9 +2,11 @@ import {
   View,
 } from 'react-native';
 import type { ViewStyle } from 'react-native';
+import { Children, useState, type ReactNode } from 'react';
 import type { MultipleChoiceLayer, SingleChoiceLayer } from '@getrheo/contracts';
 import {
   DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX,
+  choiceGridTileWidth,
   findOptionStackForChoice,
   resolveCommonStyleAtWidth,
   resolveLayerGap,
@@ -12,7 +14,7 @@ import {
   applyChoiceOptionSelectionToStack,
 } from '@getrheo/flow-runtime';
 import { useScreenInputDraft } from '@getrheo/flow-ui-state/draft';
-import { ChoicePressable, type Ctx, type RenderLayer } from '../LayerRendererShared';
+import { ChromeView, ChoicePressable, type Ctx, type RenderLayer } from '../LayerRendererShared';
 import {
   buttonPalette,
   commonViewStylePair,
@@ -36,7 +38,10 @@ const optionPressDefaultsStyle = (ctx: Ctx): ViewStyle => {
   };
 };
 
-const choiceOuterStyle = (layer: ChoiceLayer, ctx: Ctx): ViewStyle => {
+const choiceOuterPair = (
+  layer: ChoiceLayer,
+  ctx: Ctx,
+): { style: ViewStyle; linearGradient: ReturnType<typeof commonViewStylePair>['linearGradient'] } => {
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const resolved = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const inner = stripCommonLayoutForInner(
@@ -50,27 +55,30 @@ const choiceOuterStyle = (layer: ChoiceLayer, ctx: Ctx): ViewStyle => {
   );
   const isAbsolute = resolved?.position === 'absolute';
   const inFlex = ctx.parentStackDirection !== undefined;
-  const directWidth = isAbsolute || inFlex ? undefined : widthFor(resolved?.width);
+  const flowWidth =
+    isAbsolute || inFlex ? undefined : (widthFor(resolved?.width) ?? '100%');
   const directHeight =
     isAbsolute || inFlex ? undefined : layoutHeightFor(resolved?.height);
   return {
-    ...common,
-    ...(directWidth !== undefined ? { width: directWidth } : {}),
-    ...(directHeight !== undefined ? { height: directHeight } : {}),
-    overflow: linearGradient ? 'hidden' : undefined,
+    style: {
+      ...common,
+      ...(flowWidth !== undefined ? { width: flowWidth } : {}),
+      ...(directHeight !== undefined ? { height: directHeight } : {}),
+      overflow: linearGradient ? 'hidden' : undefined,
+    },
+    linearGradient,
   };
 };
 
 const choiceLayout = (
   layer: ChoiceLayer,
-): { container: ViewStyle; item: ViewStyle | undefined } => {
+): { container: ViewStyle; item: ViewStyle | undefined; useMeasuredGrid: boolean } => {
   const gap = resolveLayerGap(layer.kind, layer.gap);
   if (layer.direction === 'grid') {
-    const columns = Math.max(1, layer.columns ?? 2);
-    const widthPct = `${(100 / columns).toFixed(4)}%` as `${number}%`;
     return {
       container: { flexDirection: 'row', flexWrap: 'wrap', gap },
-      item: { width: widthPct, flexGrow: 0, flexShrink: 0 },
+      item: undefined,
+      useMeasuredGrid: true,
     };
   }
   return {
@@ -79,7 +87,43 @@ const choiceLayout = (
       gap,
     },
     item: undefined,
+    useMeasuredGrid: false,
   };
+};
+
+const ChoiceGridList = ({
+  columns,
+  gap,
+  children,
+}: {
+  columns: number;
+  gap: number;
+  children: ReactNode;
+}) => {
+  const [containerWidth, setContainerWidth] = useState(0);
+  const tileWidth = choiceGridTileWidth(containerWidth, columns, gap);
+  const itemStyle: ViewStyle =
+    tileWidth > 0
+      ? { width: tileWidth, flexGrow: 0, flexShrink: 0 }
+      : {
+          flexGrow: 0,
+          flexShrink: 0,
+          flexBasis: `${(100 / Math.max(1, columns)).toFixed(4)}%` as `${number}%`,
+        };
+
+  return (
+    <View
+      style={{ flexDirection: 'row', flexWrap: 'wrap', gap }}
+      onLayout={(event) => {
+        const nextWidth = event.nativeEvent.layout.width;
+        if (nextWidth !== containerWidth) setContainerWidth(nextWidth);
+      }}
+    >
+      {Children.map(children, (child) => (
+        <View style={itemStyle}>{child}</View>
+      ))}
+    </View>
+  );
 };
 
 const stackWithSelectedStyle = applyChoiceOptionSelectionToStack;
@@ -134,6 +178,26 @@ const ChoiceOptionRow = ({
   );
 };
 
+const ChoiceOptionsContainer = ({
+  layer,
+  children,
+}: {
+  layer: ChoiceLayer;
+  children: ReactNode;
+}) => {
+  const { container, useMeasuredGrid } = choiceLayout(layer);
+  const gap = resolveLayerGap(layer.kind, layer.gap);
+  const columns = Math.max(1, layer.columns ?? 2);
+  if (useMeasuredGrid) {
+    return (
+      <ChoiceGridList columns={columns} gap={gap}>
+        {children}
+      </ChoiceGridList>
+    );
+  }
+  return <View style={container}>{children}</View>;
+};
+
 export const SingleChoiceView = ({
   layer,
   ctx,
@@ -147,11 +211,13 @@ export const SingleChoiceView = ({
   const manualSubmit = screenHasContinueButton(ctx.screen);
   const selectedId =
     draftCtx?.draft?.kind === 'choice' ? draftCtx.draft.choiceId : null;
-  const { container, item } = choiceLayout(layer);
+  const { item } = choiceLayout(layer);
+
+  const outer = choiceOuterPair(layer, ctx);
 
   return (
-    <View style={choiceOuterStyle(layer, ctx)}>
-      <View style={container}>
+    <ChromeView style={outer.style} linearGradient={outer.linearGradient}>
+      <ChoiceOptionsContainer layer={layer}>
         {layer.optionBindings.map((b) => (
           <ChoiceOptionRow
             key={b.optionId}
@@ -170,8 +236,8 @@ export const SingleChoiceView = ({
             }}
           />
         ))}
-      </View>
-    </View>
+      </ChoiceOptionsContainer>
+    </ChromeView>
   );
 };
 
@@ -203,11 +269,13 @@ export const MultipleChoiceView = ({
     );
   };
 
-  const { container, item } = choiceLayout(layer);
+  const { item } = choiceLayout(layer);
+
+  const outer = choiceOuterPair(layer, ctx);
 
   return (
-    <View style={choiceOuterStyle(layer, ctx)}>
-      <View style={container}>
+    <ChromeView style={outer.style} linearGradient={outer.linearGradient}>
+      <ChoiceOptionsContainer layer={layer}>
         {layer.optionBindings.map((b) => (
           <ChoiceOptionRow
             key={b.optionId}
@@ -220,7 +288,7 @@ export const MultipleChoiceView = ({
             onPress={() => toggle(b.optionId)}
           />
         ))}
-      </View>
-    </View>
+      </ChoiceOptionsContainer>
+    </ChromeView>
   );
 };

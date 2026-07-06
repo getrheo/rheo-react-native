@@ -13,6 +13,10 @@ import {
 import type {ReactNode} from 'react';
 import { EventQueue } from './eventQueue';
 import type {SdkEventBuildConfig} from './events';
+import {
+  hydrateResolvedAppUserIdFromStorage,
+  needsNativeAppUserIdHydration,
+} from './events';
 import { createSdkLogger, registerSdkLogLevel } from './logging/sdkLogger';
 import type {AttributionRuntimeProvider, AttributionStorageAdapter, } from './attribution/attributionTypes';
 import {
@@ -47,8 +51,7 @@ export type RheoConfig = {
   apiBaseUrl?: string;
   /** Primary end-user id for analytics and experiment bucketing. When
    * omitted, the SDK uses a persisted anonymous UUID (`localStorage` on
-   * web; in-memory singleton in other runtimes — pass an explicit id on
-   * React Native). Forwarded as `identity.appUserId`. */
+   * web; AsyncStorage on React Native). Forwarded as `identity.appUserId`. */
   userId?: string;
   /** Optional id from the host's backend (CRM / auth). Forwarded as
    * `identity.customUserId` alongside `appUserId` for dashboard joins. */
@@ -114,9 +117,20 @@ export const RheoProvider = ({
   const [customUserIdRuntime, setCustomUserIdRuntime] = useState<string | undefined>(() =>
     resolvedConfig.customUserId,
   );
+  const [appUserIdReady, setAppUserIdReady] = useState(
+    () => Boolean(resolvedConfig.userId) || !needsNativeAppUserIdHydration(),
+  );
   useEffect(() => {
     setCustomUserIdRuntime(resolvedConfig.customUserId);
   }, [resolvedConfig.customUserId]);
+
+  useEffect(() => {
+    if (resolvedConfig.userId || !needsNativeAppUserIdHydration()) {
+      setAppUserIdReady(true);
+      return;
+    }
+    void hydrateResolvedAppUserIdFromStorage().finally(() => setAppUserIdReady(true));
+  }, [resolvedConfig.userId]);
 
   const setCustomUserId = useCallback((next: string | undefined) => {
     setCustomUserIdRuntime(next);
@@ -217,6 +231,8 @@ export const RheoProvider = ({
     () => ({ config: mergedConfig, queue, setCustomUserId }),
     [mergedConfig, queue, setCustomUserId],
   );
+
+  if (!appUserIdReady) return null;
 
   return createElement(Ctx.Provider, { value }, children);
 };

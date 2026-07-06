@@ -5,6 +5,8 @@ vi.mock('./ui', () => ({
   Flow: () => null,
 }));
 
+import { carouselSnapDurationMs } from '@getrheo/flow-runtime';
+
 import { LayerRenderer, Flow, RheoProvider, buildBrandingFontLoadMap, generateEventId } from './index';
 
 describe('@getrheo/react-native-core public entry', () => {
@@ -14,5 +16,11 @@ describe('@getrheo/react-native-core public entry', () => {
     expect(typeof generateEventId).toBe('function');
     expect(typeof Flow).toBe('function');
     expect(typeof LayerRenderer).toBe('function');
+  });
+
+  // IMP-515 — carousel snap duration re-exported from @getrheo/flow-runtime for RN consumers.
+  it('imports carouselSnapDurationMs from @getrheo/flow-runtime', () => {
+    expect(typeof carouselSnapDurationMs).toBe('function');
+    expect(carouselSnapDurationMs({ distance: 120, snapInterval: 120 })).toBe(280);
   });
 });

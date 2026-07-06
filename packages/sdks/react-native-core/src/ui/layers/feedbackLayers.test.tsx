@@ -2,14 +2,16 @@ import { createElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { layerSmokeManifest, layerSmokeScreen } from '@rheo/contracts-fixtures/layerSmoke';
 import type { CounterLayer, LoaderLayer, ProgressLayer } from '@getrheo/contracts';
-import { formatCounterLayerDisplay } from '@getrheo/flow-runtime';
+import type { BrandGradient, Branding } from '@getrheo/contracts/branding';
+import { BRAND_GRADIENT_PREFIX, formatCounterLayerDisplay } from '@getrheo/flow-runtime';
 import { CounterView, LoaderView, ProgressView } from './feedbackLayers';
 import type { Ctx } from '../LayerRendererShared';
 
+type TestNode = { props: Record<string, unknown>; children?: TestNode[] };
 type ReactTestRenderer = {
   root: {
-    findAllByType: (type: string) => Array<{ props: Record<string, unknown> }>;
-    findByProps: (props: Record<string, unknown>) => { props: Record<string, unknown> };
+    findAllByType: (type: string) => TestNode[];
+    findByProps: (props: Record<string, unknown>) => TestNode;
   };
   unmount: () => void;
 };
@@ -58,6 +60,10 @@ vi.mock('react-native', async () => {
   return {
     Text: passthrough('Text'),
     View: passthrough('View'),
+    StyleSheet: {
+      create: (s: Record<string, unknown>) => s,
+      absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+    },
     AccessibilityInfo: {
       addEventListener: () => ({ remove: () => undefined }),
       isReduceMotionEnabled: async () => false,
@@ -109,6 +115,34 @@ const findLayer = <T extends { id: string }>(screenId: string, layerId: string):
   const layer = body.children.find((c) => c.id === layerId);
   if (!layer) throw new Error(`layer ${layerId} missing`);
   return layer as unknown as T;
+};
+
+const brandGradientPreset: BrandGradient = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'G1',
+  type: 'linear',
+  angle: 90,
+  stops: [
+    { color: '#ff0000', offset: 0 },
+    { color: '#0000ff', offset: 1 },
+  ],
+};
+
+const brandGradientBranding: Branding = {
+  gradientPresets: [brandGradientPreset],
+  colorPresets: [],
+  fontFamilies: [],
+};
+
+const brandGradientToken = `${BRAND_GRADIENT_PREFIX}${brandGradientPreset.id}`;
+
+const gradientCtx = (screenId: string): Ctx =>
+  smokeCtx(screenId, { branding: brandGradientBranding, parentStackDirection: 'vertical' });
+
+const flattenStyle = (style: unknown): Record<string, unknown> => {
+  if (!style) return {};
+  if (Array.isArray(style)) return Object.assign({}, ...style.filter(Boolean));
+  return style as Record<string, unknown>;
 };
 
 describe('native feedbackLayers smoke', () => {
@@ -171,6 +205,66 @@ describe('native feedbackLayers smoke', () => {
     const textNodes = tree!.root.findAllByType('Text');
     const joined = textNodes.map((n) => String(n.props.children ?? '')).join('');
     expect(joined).toContain(expected);
+    tree?.unmount();
+  });
+});
+
+describe('CounterView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer chrome when background is a brand gradient', async () => {
+    const layer: CounterLayer = {
+      id: 'lyr_ctr_gradient',
+      kind: 'counter',
+      startValue: 0,
+      endValue: 10,
+      style: { background: brandGradientToken, radius: 8, fontSize: 24 },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(CounterView, { layer, ctx: gradientCtx('scr_sm_counter') }),
+      );
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
+    tree?.unmount();
+  });
+});
+
+describe('ProgressView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer chrome when background is a brand gradient', async () => {
+    const layer: ProgressLayer = {
+      id: 'lyr_prog_gradient',
+      kind: 'progress',
+      style: { background: brandGradientToken, radius: 8, width: 'full' },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(ProgressView, { layer, ctx: gradientCtx('scr_sm_progress') }),
+      );
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
+    tree?.unmount();
+  });
+});
+
+describe('LoaderView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer chrome when background is a brand gradient', async () => {
+    const layer: LoaderLayer = {
+      id: 'lyr_ld_gradient',
+      kind: 'loader',
+      variant: 'linear',
+      style: { background: brandGradientToken, radius: 8, width: 'full' },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(LoaderView, { layer, ctx: gradientCtx('scr_sm_loader_linear') }),
+      );
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
     tree?.unmount();
   });
 });

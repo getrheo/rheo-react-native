@@ -14,7 +14,7 @@ export const oauthChromePaddingNative = (p: Padding | undefined): ViewStyle =>
   p?.b !== undefined ||
   p?.l !== undefined
     ? { paddingTop: p.t, paddingRight: p.r, paddingBottom: p.b, paddingLeft: p.l }
-    : { paddingVertical: 12, paddingHorizontal: 16 };
+    : { paddingTop: 10, paddingRight: 12, paddingBottom: 10, paddingLeft: 12 };
 
 export const oauthChromeMarginNative = (p: Padding | undefined): ViewStyle =>
   p?.t !== undefined || p?.r !== undefined || p?.b !== undefined || p?.l !== undefined

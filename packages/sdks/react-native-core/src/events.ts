@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SdkEvent } from '@getrheo/contracts';
 import type {RheoConfig} from './client';
 
@@ -28,22 +29,65 @@ export const generateEventId = (): string => {
   return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
 };
 
-/** localStorage key for the default per-browser anonymous id. */
+/** localStorage / AsyncStorage / UserDefaults key for the default anonymous id. */
 export const PERSISTED_APP_USER_ID_KEY = 'rheo_app_user_id';
 
 let nonBrowserCachedAppUserId: string | null = null;
+let nativeStorageHydrationPromise: Promise<void> | null = null;
+
+const hasWebLocalStorage = (): boolean =>
+  typeof window !== 'undefined' && Boolean(window.localStorage);
+
+/** Hermes / RN bridge without relying on a `react-native` import. */
+export const isNativeRuntime = (): boolean => {
+  type RNGlobals = { HermesInternal?: unknown; nativePerformanceNow?: unknown };
+  const g = globalThis as RNGlobals;
+  return Boolean(g.HermesInternal || g.nativePerformanceNow);
+};
+
+const persistAppUserIdNative = async (id: string): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(PERSISTED_APP_USER_ID_KEY, id);
+  } catch {
+    /* quota / unavailable */
+  }
+};
+
+/**
+ * Loads a persisted anonymous id from AsyncStorage on React Native.
+ * Call from `RheoProvider` before resolve/events when `userId` is omitted.
+ */
+export const hydrateResolvedAppUserIdFromStorage = async (): Promise<void> => {
+  if (hasWebLocalStorage() || !isNativeRuntime()) return;
+  try {
+    const existing = await AsyncStorage.getItem(PERSISTED_APP_USER_ID_KEY);
+    if (existing) {
+      nonBrowserCachedAppUserId = existing;
+      return;
+    }
+    if (nonBrowserCachedAppUserId) {
+      await persistAppUserIdNative(nonBrowserCachedAppUserId);
+    }
+  } catch {
+    /* fall through to in-memory singleton */
+  }
+};
+
+const ensureNativeHydrationStarted = (): void => {
+  if (!isNativeRuntime() || hasWebLocalStorage() || nativeStorageHydrationPromise) return;
+  nativeStorageHydrationPromise = hydrateResolvedAppUserIdFromStorage();
+};
 
 /**
  * When `config.userId` is set, returns it (host owns the primary id).
  * Otherwise returns a stable anonymous id: persisted in `localStorage` on
- * web, or an in-process singleton in non-browser runtimes (tests, SSR
- * without storage — React Native hosts should pass `userId` until a
- * storage adapter exists).
+ * web, AsyncStorage on React Native, or an in-process singleton when storage
+ * is unavailable (tests, private mode).
  */
 export const getResolvedAppUserId = (config: Pick<RheoConfig, 'userId'>): string => {
   if (config.userId) return config.userId;
 
-  if (typeof window !== 'undefined' && window.localStorage) {
+  if (hasWebLocalStorage()) {
     try {
       const existing = window.localStorage.getItem(PERSISTED_APP_USER_ID_KEY);
       if (existing) return existing;
@@ -55,13 +99,25 @@ export const getResolvedAppUserId = (config: Pick<RheoConfig, 'userId'>): string
     }
   }
 
-  if (!nonBrowserCachedAppUserId) nonBrowserCachedAppUserId = generateEventId();
+  ensureNativeHydrationStarted();
+
+  if (!nonBrowserCachedAppUserId) {
+    nonBrowserCachedAppUserId = generateEventId();
+    if (isNativeRuntime() && !hasWebLocalStorage()) {
+      void persistAppUserIdNative(nonBrowserCachedAppUserId);
+    }
+  }
   return nonBrowserCachedAppUserId;
 };
 
-/** Test-only: clears the non-browser singleton. */
+/** Whether anonymous id hydration must complete before resolve/events (RN native only). */
+export const needsNativeAppUserIdHydration = (): boolean =>
+  isNativeRuntime() && !hasWebLocalStorage();
+
+/** Test-only: clears the non-browser singleton and hydration latch. */
 export const __resetResolvedAppUserIdForTests = (): void => {
   nonBrowserCachedAppUserId = null;
+  nativeStorageHydrationPromise = null;
 };
 
 /**

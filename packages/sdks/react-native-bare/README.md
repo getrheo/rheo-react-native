@@ -21,6 +21,8 @@ Complete native setup for permissions (Info.plist / AndroidManifest) per [react-
 
 Same API as the Expo flavor (`Flow`, `RheoProvider`, `useFlow`, …). See [`react-native-expo/README.md`](../react-native-expo/README.md) for flow semantics, events, terminal payloads, and production **`apiBaseUrl`** guidance — import from `@getrheo/react-native-bare` instead.
 
+Cross-SDK integration map (RN subpaths vs SwiftUI): [`packages/sdks/docs/CROSS_SDK_INTEGRATION.md`](../docs/CROSS_SDK_INTEGRATION.md).
+
 ## Example
 
 Runnable sample app: [getrheo/rheo-example-bare](https://github.com/getrheo/rheo-example-bare) (private monorepo copy: [`apps/example-bare`](../../../apps/example-bare)).

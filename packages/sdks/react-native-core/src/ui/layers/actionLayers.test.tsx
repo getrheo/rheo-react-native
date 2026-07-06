@@ -2,6 +2,8 @@ import { createElement, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { layerSmokeManifest, layerSmokeScreen } from '@rheo/contracts-fixtures/layerSmoke';
 import type { BackButtonLayer, ButtonLayer } from '@getrheo/contracts';
+import type { BrandGradient, Branding } from '@getrheo/contracts/branding';
+import { BRAND_GRADIENT_PREFIX } from '@getrheo/flow-runtime';
 import { BackButtonView, ButtonView } from './actionLayers';
 import type { Ctx, RenderLayer } from '../LayerRendererShared';
 
@@ -30,6 +32,7 @@ vi.mock('react-native', async () => {
   return {
     Text: passthrough('Text'),
     View: passthrough('View'),
+    StyleSheet: { create: (s: Record<string, unknown>) => s, absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 } },
   };
 });
 
@@ -63,7 +66,7 @@ vi.mock('react-native-reanimated', async () => {
       View: (props: { children?: ReactNode }) =>
         React.createElement('Animated.View', props, props.children),
     },
-    useAnimatedStyle: () => ({}),
+    useAnimatedStyle: (fn: () => Record<string, unknown>) => fn(),
     useSharedValue: (v: number) => ({ value: v }),
     withTiming: (v: unknown) => v,
     runOnJS: (fn: () => void) => fn,
@@ -92,6 +95,31 @@ const smokeCtx = (screenId: string, overrides?: Partial<Ctx>): Ctx => ({
 });
 
 const noopRender: RenderLayer = () => null;
+
+const brandGradientPreset: BrandGradient = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'G1',
+  type: 'linear',
+  angle: 90,
+  stops: [
+    { color: '#ff0000', offset: 0 },
+    { color: '#0000ff', offset: 1 },
+  ],
+};
+
+const brandGradientBranding: Branding = {
+  gradientPresets: [brandGradientPreset],
+  colorPresets: [],
+  fontFamilies: [],
+};
+
+const brandGradientToken = `${BRAND_GRADIENT_PREFIX}${brandGradientPreset.id}`;
+
+const flattenStyle = (style: unknown): Record<string, unknown> => {
+  if (!style) return {};
+  if (Array.isArray(style)) return Object.assign({}, ...style.filter(Boolean));
+  return style as Record<string, unknown>;
+};
 
 const findLayer = <T extends { id: string }>(screenId: string, layerId: string): T => {
   const body = layerSmokeScreen(screenId).regions.body;
@@ -209,6 +237,93 @@ describe('native actionLayers smoke', () => {
     const style = animated[0]?.props.style;
     const flat = Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : style;
     expect(flat?.borderWidth).toBe(0);
+    tree?.unmount();
+  });
+});
+
+describe('ButtonView brand gradient overflow clip', () => {
+  it('sets overflow hidden on pressable chrome when background is a brand gradient', async () => {
+    const layer: ButtonLayer = {
+      id: 'lyr_btn_gradient',
+      kind: 'button',
+      variant: 'primary',
+      action: { kind: 'continue' },
+      direction: 'horizontal',
+      align: 'center',
+      distribution: 'center',
+      style: {
+        width: 'full',
+        background: brandGradientToken,
+        radius: 10,
+        padding: { t: 12, r: 12, b: 12, l: 12 },
+      },
+      children: [
+        {
+          id: 'lyr_btn_gradient_lbl',
+          kind: 'text',
+          text: { default: 'Continue' },
+          style: { fontSize: 16, fontWeight: 600 },
+        },
+      ],
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(ButtonView, {
+          layer,
+          ctx: smokeCtx('scr_sm_button', {
+            branding: brandGradientBranding,
+            parentStackDirection: 'vertical',
+          }),
+          renderLayer: noopRender,
+        }),
+      );
+    });
+    const animated = tree!.root.findAllByType('Animated.View')[0];
+    expect(flattenStyle(animated?.props.style).overflow).toBe('hidden');
+    tree?.unmount();
+  });
+});
+
+describe('BackButtonView brand gradient overflow clip', () => {
+  it('sets overflow hidden on pressable chrome when background is a brand gradient', async () => {
+    const layer: BackButtonLayer = {
+      id: 'lyr_back_gradient',
+      kind: 'back_button',
+      variant: 'ghost',
+      direction: 'horizontal',
+      align: 'center',
+      distribution: 'center',
+      style: {
+        width: 'full',
+        background: brandGradientToken,
+        radius: 10,
+        padding: { t: 12, r: 12, b: 12, l: 12 },
+      },
+      children: [
+        {
+          id: 'lyr_back_gradient_lbl',
+          kind: 'text',
+          text: { default: 'Back' },
+          style: { fontSize: 16, fontWeight: 600 },
+        },
+      ],
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(BackButtonView, {
+          layer,
+          ctx: smokeCtx('scr_sm_button', {
+            branding: brandGradientBranding,
+            parentStackDirection: 'vertical',
+          }),
+          renderLayer: noopRender,
+        }),
+      );
+    });
+    const animated = tree!.root.findAllByType('Animated.View')[0];
+    expect(flattenStyle(animated?.props.style).overflow).toBe('hidden');
     tree?.unmount();
   });
 });

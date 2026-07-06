@@ -9,12 +9,12 @@ export const stressHarnessScreensEarly = [
         name: 'Stress · Start',
         regions: {
           body: bodyStack('lyr_sh_en_b', [
-            tx('lyr_sh_en_h', 'Seed stress harness', { fontSize: 24, fontWeight: 700 }),
-            tx('lyr_sh_en_p', 'Overlaps, branching, decisions, auth, animations.'),
+            tx('lyr_sh_en_h', 'Layer stress harness', { fontSize: 24, fontWeight: 700 }),
+            tx('lyr_sh_en_p', 'All layer kinds, styling combos, decisions, and integrations.'),
             cta('lyr_sh_en_go'),
           ]),
         },
-        next: { default: 'scr_sh_regions' },
+        next: { default: 'scr_lk_index' },
       },
       {
         id: 'scr_sh_regions',
