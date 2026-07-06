@@ -37,6 +37,8 @@ export type Ctx = {
   parentStackDirection?: 'vertical' | 'horizontal';
   /** Cross-axis alignment of the immediate parent stack. */
   parentStackAlign?: 'start' | 'center' | 'end' | 'stretch';
+  /** System Dynamic Type scale (`useWindowDimensions().fontScale`). */
+  fontScale?: number;
 };
 
 export type RenderLayer = (layer: Layer, ctx: Ctx) => ReactNode;

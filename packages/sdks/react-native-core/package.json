@@ -1,6 +1,6 @@
 {
   "name": "@getrheo/react-native-core",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -21,11 +21,11 @@
   },
   "dependencies": {
     "@react-native-community/slider": "^5.0.1",
-    "@getrheo/attribution": "2.1.0",
-    "@getrheo/contracts": "2.1.0",
-    "@getrheo/flow-runtime": "2.1.0",
-    "@getrheo/flow-ui-state": "2.1.0",
-    "@getrheo/renderer-core": "2.1.0",
+    "@getrheo/attribution": "2.2.0",
+    "@getrheo/contracts": "2.2.0",
+    "@getrheo/flow-runtime": "2.2.0",
+    "@getrheo/flow-ui-state": "2.2.0",
+    "@getrheo/renderer-core": "2.2.0",
     "react-native-linear-gradient": "^2.8.3",
     "react-native-svg": "15.15.4",
     "zod": "^3.23.8"

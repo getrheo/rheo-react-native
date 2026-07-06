@@ -12,6 +12,7 @@ export const stressHarnessScreensLate = [
               id: 'lyr_sh_oa',
               kind: 'oauth_login',
               gap: 8,
+              style: { width: 'full', height: 'fill' },
               children: [
                 { id: 'lyr_sh_oa_gh', kind: 'oauth_provider', variant: 'preset', provider: 'github' },
                 { id: 'lyr_sh_oa_goog', kind: 'oauth_provider', variant: 'preset', provider: 'google' },
@@ -22,6 +23,10 @@ export const stressHarnessScreensLate = [
                   variant: 'custom',
                   rowId: OAUTH_CUSTOM_ROW,
                   buttonVariant: 'secondary',
+                  direction: 'horizontal',
+                  align: 'center',
+                  distribution: 'center',
+                  style: { width: 'full', height: 'auto' },
                   children: [
                     { id: 'lyr_sh_oa_ico', kind: 'icon', family: 'ionicons', iconName: 'shield-outline', style: { width: 22, height: 22, color: DEFAULT_THEMED_FOREGROUND } },
                     { id: 'lyr_sh_oa_txt', kind: 'text', text: { default: 'Custom SSO' }, style: { color: DEFAULT_THEMED_FOREGROUND } },
@@ -45,6 +50,7 @@ export const stressHarnessScreensLate = [
               mode: 'sign_in',
               fieldKey: 'sh_cred_in',
               gap: 8,
+              style: { width: 'full', height: 'fill' },
               children: [
                 {
                   id: 'lyr_sh_ei_em',
@@ -62,6 +68,10 @@ export const stressHarnessScreensLate = [
                   id: 'lyr_sh_ei_sub',
                   kind: 'email_password_submit',
                   buttonVariant: 'primary',
+                  direction: 'horizontal',
+                  align: 'center',
+                  distribution: 'center',
+                  style: { width: 'full', height: 'auto' },
                   children: [{ id: 'lyr_sh_ei_st', kind: 'text', text: { default: 'Sign in' }, style: { color: PRIMARY_FILLED_LABEL } }],
                 },
               ],
@@ -82,6 +92,7 @@ export const stressHarnessScreensLate = [
               mode: 'sign_up',
               fieldKey: 'sh_cred_up',
               gap: 8,
+              style: { width: 'full', height: 'fill' },
               children: [
                 {
                   id: 'lyr_sh_eu_em',
@@ -105,6 +116,10 @@ export const stressHarnessScreensLate = [
                   id: 'lyr_sh_eu_sub',
                   kind: 'email_password_submit',
                   buttonVariant: 'primary',
+                  direction: 'horizontal',
+                  align: 'center',
+                  distribution: 'center',
+                  style: { width: 'full', height: 'auto' },
                   children: [{ id: 'lyr_sh_eu_st', kind: 'text', text: { default: 'Create account' }, style: { color: PRIMARY_FILLED_LABEL } }],
                 },
               ],

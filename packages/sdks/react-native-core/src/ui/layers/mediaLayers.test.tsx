@@ -2,9 +2,14 @@ import { createElement, type ReactNode } from 'react';
 import type { ViewStyle } from 'react-native';
 import { describe, expect, it, vi } from 'vitest';
 import { layerSmokeManifest, layerSmokeScreen } from '@rheo/contracts-fixtures/layerSmoke';
-import type { IconLayer, ImageLayer, LottieLayer } from '@getrheo/contracts';
-import { IconView, ImageView, LottieLayerView } from './mediaLayers';
-import type { Ctx } from '../LayerRendererShared';
+import type { IconLayer, ImageLayer, LottieLayer, VideoLayer } from '@getrheo/contracts';
+import type { BrandGradient, Branding } from '@getrheo/contracts/branding';
+import { BRAND_GRADIENT_PREFIX, DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX, resolveImageStyleAtWidth } from '@getrheo/flow-runtime';
+import { __setVideoAdapterForTests } from '../../platform/videoAdapter.js';
+import type { VideoLayerViewProps } from '../../platform/videoAdapter.js';
+import { ChromeView, type Ctx } from '../LayerRendererShared';
+import { mediaLayerOuterLayoutPair } from '../styles';
+import { IconView, ImageView, LottieLayerView, VideoLayerView } from './mediaLayers';
 
 type ReactTestRenderer = {
   root: {
@@ -76,7 +81,11 @@ vi.mock('react-native', async () => {
     View: passthrough('View'),
     Image: passthrough('Image'),
     Platform: { OS: 'ios', select: (o: Record<string, unknown>) => o.ios ?? o.default },
-    StyleSheet: { hairlineWidth: 1 },
+    StyleSheet: {
+      create: (s: Record<string, unknown>) => s,
+      absoluteFillObject: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+      hairlineWidth: 1,
+    },
   };
 });
 
@@ -130,6 +139,55 @@ const findLayer = <T extends { id: string }>(layerId: string): T => {
   const layer = body.children.find((c) => c.id === layerId);
   if (!layer) throw new Error(`layer ${layerId} missing`);
   return layer as unknown as T;
+};
+
+const brandGradientPreset: BrandGradient = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'G1',
+  type: 'linear',
+  angle: 90,
+  stops: [
+    { color: '#ff0000', offset: 0 },
+    { color: '#0000ff', offset: 1 },
+  ],
+};
+
+const brandGradientBranding: Branding = {
+  gradientPresets: [brandGradientPreset],
+  colorPresets: [],
+  fontFamilies: [],
+};
+
+const brandGradientToken = `${BRAND_GRADIENT_PREFIX}${brandGradientPreset.id}`;
+
+const gradientCtx = (overrides?: Partial<Ctx>): Ctx =>
+  smokeCtx({
+    branding: brandGradientBranding,
+    parentStackDirection: 'vertical',
+    ...overrides,
+  });
+
+const flattenStyle = (style: unknown): Record<string, unknown> => {
+  if (!style) return {};
+  if (Array.isArray(style)) return Object.assign({}, ...style.filter(Boolean));
+  return style as Record<string, unknown>;
+};
+
+const StubVideoLayerView = ({ layer, ctx }: VideoLayerViewProps) => {
+  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
+  const resolvedStyle = resolveImageStyleAtWidth(layer.style, layer.styleBreakpoints, w);
+  const { outerStyle, linearGradient } = mediaLayerOuterLayoutPair(
+    resolvedStyle,
+    ctx.manifest.theme,
+    ctx.theme,
+    ctx.branding,
+    ctx.parentStackDirection,
+  );
+  return createElement(ChromeView, {
+    style: outerStyle,
+    linearGradient,
+    children: createElement('View', null),
+  });
 };
 
 describe('native mediaLayers smoke', () => {
@@ -205,6 +263,82 @@ describe('native mediaLayers smoke', () => {
     });
     const lottie = tree!.root.findByType('LottieView');
     expect(lottie.props.source).toEqual({ uri: 'https://example.com/anim.json' });
+    tree?.unmount();
+  });
+});
+
+describe('ImageView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer chrome when background is a brand gradient', async () => {
+    const layer: ImageLayer = {
+      id: 'lyr_img_gradient',
+      kind: 'image',
+      style: { background: brandGradientToken, radius: 8, width: 80, height: 80 },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(createElement(ImageView, { layer, ctx: gradientCtx() }));
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
+    tree?.unmount();
+  });
+});
+
+describe('IconView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer chrome when background is a brand gradient', async () => {
+    const layer: IconLayer = {
+      id: 'lyr_icon_gradient',
+      kind: 'icon',
+      family: 'ionicons',
+      iconName: 'star-outline',
+      style: { background: brandGradientToken, radius: 8, width: 32, height: 32 },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(createElement(IconView, { layer, ctx: gradientCtx() }));
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
+    tree?.unmount();
+  });
+});
+
+describe('LottieLayerView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer chrome when background is a brand gradient', async () => {
+    const layer: LottieLayer = {
+      id: 'lyr_lottie_gradient',
+      kind: 'lottie',
+      loop: true,
+      style: { background: brandGradientToken, radius: 8, width: 80, height: 80 },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(createElement(LottieLayerView, { layer, ctx: gradientCtx() }));
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
+    tree?.unmount();
+  });
+});
+
+describe('VideoLayerView brand gradient overflow clip', () => {
+  it('sets overflow hidden on outer chrome when background is a brand gradient', async () => {
+    __setVideoAdapterForTests({
+      VideoLayerView: StubVideoLayerView,
+      ScreenShellVideoBackdrop: () => null,
+    });
+    const layer: VideoLayer = {
+      id: 'lyr_video_gradient',
+      kind: 'video',
+      loop: true,
+      style: { background: brandGradientToken, radius: 8, width: 80, height: 80 },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(createElement(VideoLayerView, { layer, ctx: gradientCtx() }));
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
     tree?.unmount();
   });
 });

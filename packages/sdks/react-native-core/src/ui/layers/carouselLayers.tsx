@@ -16,12 +16,14 @@ import {
   rendererCarouselSlideWidth,
   type RendererCarouselAlignAxis,
 } from '@getrheo/renderer-core';
+import { DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX, resolveCommonStyleAtWidth } from '@getrheo/flow-runtime';
 import { ChromeView, type Ctx, type RenderLayer } from '../LayerRendererShared';
 import {
   borderStyle,
   commonViewStylePair,
   stripCommonLayoutForInner,
   stripFlowAxesForFlexChild,
+  widthFor,
 } from '../styles';
 
 const carouselAlignToNative = (axis: RendererCarouselAlignAxis): ViewStyle['alignItems'] => {
@@ -78,6 +80,8 @@ const PageDots = ({
             opacity: dot.opacity,
             borderWidth: dot.borderWidth,
             borderColor: dot.borderColor,
+            borderStyle:
+              dot.borderWidth !== undefined && dot.borderWidth > 0 ? 'solid' : undefined,
           }}
         />
       ))}
@@ -114,7 +118,7 @@ export const CarouselView = ({
   };
 
   useEffect(() => {
-    if (!layer.autoAdvance) return;
+    if (!layer.autoAdvance || !ctx.interactive) return;
     const t = setInterval(() => {
       setIdx((cur) => {
         const next = rendererCarouselAdvanceIndex(cur, layout.slideCount, layout.loop);
@@ -124,7 +128,7 @@ export const CarouselView = ({
       });
     }, layout.autoAdvanceMs);
     return () => clearInterval(t);
-  }, [layer.autoAdvance, layout.autoAdvanceMs, layout.loop, layout.slideCount]);
+  }, [layer.autoAdvance, layout.autoAdvanceMs, layout.loop, layout.slideCount, ctx.interactive]);
 
   useEffect(() => {
     const el = scrollerRef.current;
@@ -156,52 +160,59 @@ export const CarouselView = ({
     manifestTheme: ctx.manifest.theme,
   });
   const dots = <PageDots layer={layer} idx={idx} ctx={ctx} />;
+  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
+  const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const carPair = commonViewStylePair(
-    stripCommonLayoutForInner(stripFlowAxesForFlexChild(layer.style, ctx.parentStackDirection)),
+    stripCommonLayoutForInner(stripFlowAxesForFlexChild(resolvedOuter, ctx.parentStackDirection)),
     ctx.manifest.theme,
     ctx.theme,
     ctx.branding,
   );
+  const flowWidth =
+    resolvedOuter?.position === 'absolute' || ctx.parentStackDirection !== undefined
+      ? undefined
+      : (widthFor(resolvedOuter?.width) ?? '100%');
 
   return (
-    <View onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}>
-      <ChromeView
-        style={{
-          flexDirection: 'column',
-          gap: 8,
-          ...carPair.style,
+    <ChromeView
+      style={{
+        flexDirection: 'column',
+        gap: 8,
+        ...carPair.style,
+        ...(flowWidth !== undefined ? { width: flowWidth } : {}),
+        overflow: carPair.linearGradient ? 'hidden' : undefined,
+      }}
+      linearGradient={carPair.linearGradient}
+    >
+      {dotsModel.position === 'top' && dots}
+      <ScrollView
+        ref={scrollerRef}
+        onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+        horizontal
+        pagingEnabled={layout.peek === 0 && layout.spacing === 0}
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={slideWidth + layout.spacing}
+        decelerationRate="fast"
+        onMomentumScrollEnd={onScroll}
+        contentContainerStyle={{
+          alignItems: carouselAlignToNative(layout.alignAxis),
+          paddingLeft: layout.peek,
+          paddingRight: layout.peek,
         }}
-        linearGradient={carPair.linearGradient}
       >
-        {dotsModel.position === 'top' && dots}
-        <ScrollView
-          ref={scrollerRef}
-          horizontal
-          pagingEnabled={layout.peek === 0 && layout.spacing === 0}
-          showsHorizontalScrollIndicator={false}
-          snapToInterval={slideWidth + layout.spacing}
-          decelerationRate="fast"
-          onMomentumScrollEnd={onScroll}
-          contentContainerStyle={{
-            alignItems: carouselAlignToNative(layout.alignAxis),
-            paddingLeft: layout.peek,
-            paddingRight: layout.peek,
-          }}
-        >
-          {layer.slides.map((s, i) => (
-            <View
-              key={s.id}
-              style={{
-                width: slideWidth,
-                marginRight: i < layout.slideCount - 1 ? layout.spacing : 0,
-              }}
-            >
-              <Fragment key={s.id}>{renderLayer(s, ctx)}</Fragment>
-            </View>
-          ))}
-        </ScrollView>
-        {dotsModel.position !== 'top' && dots}
-      </ChromeView>
-    </View>
+        {layer.slides.map((s, i) => (
+          <View
+            key={s.id}
+            style={{
+              width: slideWidth,
+              marginRight: i < layout.slideCount - 1 ? layout.spacing : 0,
+            }}
+          >
+            <Fragment key={s.id}>{renderLayer(s, ctx)}</Fragment>
+          </View>
+        ))}
+      </ScrollView>
+      {dotsModel.position !== 'top' && dots}
+    </ChromeView>
   );
 };

@@ -10,7 +10,7 @@ Public home for the **Rheo React Native SDK** — channel resolve, `Flow` render
 | [`@getrheo/react-native-bare`](https://www.npmjs.com/package/%40getrheo%2Freact-native-bare) | Bare React Native |
 | [`@getrheo/react-native-core`](https://www.npmjs.com/package/%40getrheo%2Freact-native-core) | Shared implementation (transitive) |
 
-**Current release line:** `2.1.0.x` (publish on git tag `v2.1.0`).
+**Current release line:** `2.2.0.x` (publish on git tag `v2.2.0`).
 
 **Compatibility:** requires [`@getrheo/contracts@2.x`](https://www.npmjs.com/package/%40getrheo%2Fcontracts) and matching [`rheo-js`](https://github.com/getrheo/rheo-js) packages (pulled transitively on install).
 

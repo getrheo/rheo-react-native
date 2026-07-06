@@ -1,21 +1,45 @@
+import type { BrandGradient, Branding } from '@getrheo/contracts/branding';
+import { BRAND_GRADIENT_PREFIX, buildTwoStopLinearGradientCss } from '@getrheo/flow-runtime';
 import { describe, expect, it } from 'vitest';
 import {
   alignFor,
   borderStyle,
   buttonChromeLayoutStyle,
   buttonPalette,
+  commonViewStylePair,
   justifyFor,
   layoutHeightFor,
   mergeButtonInlineLabelStyle,
   flowChildLayoutViewStyle,
   mediaChromeFillsMotionShell,
+  mediaLayerOuterLayoutPair,
   screenContainerChromeInsets,
   stackChildHeightFillStyle,
   stripFlowAxesForFlexChild,
   stripCommonLayoutForInner,
+  textContainerViewStylePair,
   widthFor,
   wrapperLayoutViewStyle,
 } from './styles';
+
+const brandGradientPreset: BrandGradient = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'G1',
+  type: 'linear',
+  angle: 90,
+  stops: [
+    { color: '#ff0000', offset: 0 },
+    { color: '#0000ff', offset: 1 },
+  ],
+};
+
+const brandGradientBranding: Branding = {
+  gradientPresets: [brandGradientPreset],
+  colorPresets: [],
+  fontFamilies: [],
+};
+
+const brandGradientToken = `${BRAND_GRADIENT_PREFIX}${brandGradientPreset.id}`;
 
 describe('native styles parity', () => {
   it('widthFor maps presets and numeric widths', () => {
@@ -26,11 +50,13 @@ describe('native styles parity', () => {
     expect(widthFor('2/3')).toBe('66.6667%');
   });
 
-  it('layoutHeightFor maps fill, full, auto, and px (no fractional heights)', () => {
+  it('layoutHeightFor maps fill, full, auto, fractions, and px', () => {
     expect(layoutHeightFor('fill')).toBe('100%');
     expect(layoutHeightFor('full')).toBe('100%');
     expect(layoutHeightFor('auto')).toBe('auto');
     expect(layoutHeightFor(120)).toBe(120);
+    expect(layoutHeightFor('1/2')).toBe('50%');
+    expect(layoutHeightFor('2/3')).toBe('66.6667%');
     expect(layoutHeightFor(undefined)).toBeUndefined();
   });
 
@@ -62,6 +88,13 @@ describe('native styles parity', () => {
     expect(flowChildLayoutViewStyle({ width: 'full' }, 'vertical')).toMatchObject({
       width: '100%',
       alignSelf: 'stretch',
+    });
+  });
+
+  it('flowChildLayoutViewStyle applies fractional height inside a parent stack', () => {
+    expect(flowChildLayoutViewStyle({ width: 'full', height: '1/2' }, 'vertical')).toMatchObject({
+      width: '100%',
+      height: '50%',
     });
   });
 
@@ -127,6 +160,22 @@ describe('native styles parity', () => {
       rotate: 45,
       padding: { t: 4, r: 4, b: 4, l: 4 },
     });
+    expect(stripped).toEqual({ padding: { t: 4, r: 4, b: 4, l: 4 } });
+  });
+
+  it('inner strip chain applies stripFlowAxesForFlexChild before stripCommonLayoutForInner', () => {
+    const stripped = stripCommonLayoutForInner(
+      stripFlowAxesForFlexChild(
+        {
+          width: 'full',
+          height: 'fill',
+          zIndex: 2,
+          rotate: 45,
+          padding: { t: 4, r: 4, b: 4, l: 4 },
+        },
+        'horizontal',
+      ),
+    );
     expect(stripped).toEqual({ padding: { t: 4, r: 4, b: 4, l: 4 } });
   });
 
@@ -216,5 +265,63 @@ describe('native styles parity', () => {
       marginBottom: 4,
       marginLeft: 0,
     });
+  });
+
+  it('mediaLayerOuterLayoutPair sets overflow hidden for brand gradient background', () => {
+    const { outerStyle, linearGradient } = mediaLayerOuterLayoutPair(
+      { background: brandGradientToken, width: 120, height: 120, radius: 8 },
+      undefined,
+      'light',
+      brandGradientBranding,
+    );
+    expect(linearGradient).not.toBeNull();
+    expect(outerStyle.overflow).toBe('hidden');
+  });
+
+  it('mediaLayerOuterLayoutPair omits overflow for solid background', () => {
+    const { outerStyle, linearGradient } = mediaLayerOuterLayoutPair(
+      { background: { light: '#ffffff', dark: '#000000' }, width: 120, height: 120 },
+      undefined,
+      'dark',
+    );
+    expect(linearGradient).toBeNull();
+    expect(outerStyle.overflow).toBeUndefined();
+    expect('overflow' in outerStyle).toBe(false);
+  });
+
+  it('mediaLayerOuterLayoutPair sets overflow hidden for authored linear-gradient CSS', () => {
+    const css = buildTwoStopLinearGradientCss(180, '#ffffff', '#000000');
+    const { outerStyle, linearGradient } = mediaLayerOuterLayoutPair(
+      { background: css, width: 'full', height: 80 },
+      undefined,
+      'light',
+    );
+    expect(linearGradient).not.toBeNull();
+    expect(outerStyle.overflow).toBe('hidden');
+  });
+
+  it('commonViewStylePair exposes linearGradient for brand gradient (layer overflow clip pattern)', () => {
+    const pair = commonViewStylePair(
+      { background: brandGradientToken, radius: 12 },
+      undefined,
+      'light',
+      brandGradientBranding,
+    );
+    expect(pair.linearGradient).not.toBeNull();
+    expect(pair.style.backgroundColor).toBeUndefined();
+    // Layer shells (layoutLayers, actionLayers, …) apply overflow when linearGradient is set.
+    expect(pair.linearGradient ? 'hidden' : undefined).toBe('hidden');
+  });
+
+  it('textContainerViewStylePair exposes linearGradient for brand gradient (layer overflow clip pattern)', () => {
+    const pair = textContainerViewStylePair(
+      { background: brandGradientToken, backgroundOpacity: 0.8, radius: 4 },
+      undefined,
+      'light',
+      brandGradientBranding,
+    );
+    expect(pair.linearGradient).not.toBeNull();
+    // Layer shells apply overflow hidden when linearGradient is present.
+    expect(pair.linearGradient ? 'hidden' : undefined).toBe('hidden');
   });
 });

@@ -7,6 +7,7 @@ import { OAUTH_LOGIN_PRESETS } from '@getrheo/contracts/layers';
 import { rendererOAuthLoginAlignAxis, rendererOAuthPresetBrandModel } from '@getrheo/renderer-core';
 import {
   oauthAlignToNative,
+  oauthChromePaddingNative,
   oauthPresetBrandNative,
   PRESET_PROVIDER_ICON,
 } from './oauthNativeChrome';
@@ -32,6 +33,15 @@ describe('oauthNativeChrome parity', () => {
     expect(oauthAlignToNative(rendererOAuthLoginAlignAxis('end'))).toBe('flex-end');
     expect(oauthAlignToNative(rendererOAuthLoginAlignAxis('stretch'))).toBe('stretch');
     expect(oauthAlignToNative(rendererOAuthLoginAlignAxis(undefined))).toBe('flex-start');
+  });
+
+  it('oauthChromePaddingNative defaults match web sim preset padding', () => {
+    expect(oauthChromePaddingNative(undefined)).toEqual({
+      paddingTop: 10,
+      paddingRight: 12,
+      paddingBottom: 10,
+      paddingLeft: 12,
+    });
   });
 
   it('PRESET_PROVIDER_ICON covers every OAuthLoginPreset', () => {

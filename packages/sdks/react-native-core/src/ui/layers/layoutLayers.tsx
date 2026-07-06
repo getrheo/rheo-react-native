@@ -24,7 +24,6 @@ import {
   commonViewStylePair,
   justifyFor,
   paddingStyle,
-  parentAlignUsesCrossAxisStretch,
   stripFlowAxesForFlexChild,
   stripCommonLayoutForInner,
   textContainerViewStylePair,
@@ -88,27 +87,29 @@ export const StackView = ({
   };
   const rootFillsRegionHeight = isRoot && ctx.regionKind === 'body';
   const inParentStack = ctx.parentStackDirection !== undefined;
-  const crossStretch = parentAlignUsesCrossAxisStretch(ctx.parentStackAlign);
+  const mainAxisFill =
+    inParentStack &&
+    (isVertical
+      ? stackMainAxisFillHeight(resolvedStyle?.height)
+      : resolvedStyle?.width === 'full');
   const containerStyle = subtreeAbs
     ? stripPaddingFromCommonStyle(stripped)
     : stripped;
   const pair = commonViewStylePair(containerStyle, ctx.manifest.theme, ctx.theme, ctx.branding);
-  // The stack-as-flex-child size block (Option A: nested stacks fill the parent
-  // main axis unconditionally). Applied once, on the outer ChromeView.
   const sizeStyle: ViewStyle = {
     ...(flowWidth !== undefined ? { width: flowWidth } : {}),
     ...(rootFillsRegionHeight
       ? { flex: 1, minHeight: 0, width: '100%', alignSelf: 'stretch' }
-      : inParentStack
-        ? {
-            flex: 1,
-            minHeight: 0,
-            minWidth: 0,
-            ...(ctx.parentStackDirection === 'vertical' ? { width: '100%' } : {}),
-            ...(crossStretch ? { alignSelf: 'stretch' as const } : {}),
-          }
-        : isRoot
-          ? { alignSelf: 'stretch' }
+      : isRoot
+        ? { alignSelf: 'stretch' }
+        : mainAxisFill
+          ? {
+              flex: 1,
+              alignSelf: 'stretch',
+              ...(isVertical
+                ? { minHeight: 0, height: '100%' }
+                : { minWidth: 0, width: '100%' }),
+            }
           : {}),
   };
   const flowLayoutStyle: ViewStyle = {
@@ -122,7 +123,11 @@ export const StackView = ({
     ...pair.style,
     ...(subtreeAbs
       ? { overflow: 'visible', position: 'relative', ...sizeStyle }
-      : { ...flowLayoutStyle, ...sizeStyle }),
+      : {
+          ...flowLayoutStyle,
+          ...sizeStyle,
+          ...(pair.linearGradient ? { overflow: 'hidden' } : {}),
+        }),
   };
   const flowChildren = layer.children.filter((c) => !layerHasAbsolutePositionAuthored(c));
   const absoluteChildren = layer.children
@@ -145,7 +150,7 @@ export const StackView = ({
             style={{
               ...flowLayoutStyle,
               width: '100%',
-              ...(flowFillsMainAxis || isVertical ? { height: '100%', minHeight: 0 } : {}),
+              ...(flowFillsMainAxis ? { height: '100%', minHeight: 0 } : {}),
               ...paddingStyle(resolvedStyle?.padding),
               zIndex: 0,
             }}
@@ -202,6 +207,7 @@ export const TextView = ({ layer, ctx }: { layer: TextLayer; ctx: Ctx }) => {
         style={textLayerStyle(resolvedStyle, ctx.manifest.theme, ctx.theme, {
           inheritDocumentForeground: true,
           branding: ctx.branding,
+          fontScale: ctx.fontScale,
         })}
       >
         {display}
@@ -232,8 +238,9 @@ export const HyperlinkView = ({
   const wrapStyle: ViewStyle = {
     ...outerPair.style,
     ...(resolvedOuter?.position !== 'absolute' && ctx.parentStackDirection === undefined
-      ? { width: widthFor(resolvedOuter?.width) }
+      ? { width: widthFor(resolvedOuter?.width) ?? '100%', alignSelf: 'stretch' }
       : {}),
+    ...(outerPair.linearGradient ? { overflow: 'hidden' } : {}),
   };
   const href = layer.href.trim();
   const isVertical = (layer.direction ?? 'horizontal') === 'vertical';

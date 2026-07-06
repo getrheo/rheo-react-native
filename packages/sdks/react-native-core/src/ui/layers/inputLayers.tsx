@@ -11,7 +11,7 @@ import type { CheckboxLayer, ScaleInputLayer, TextInputLayer } from '@getrheo/co
 import { resolveLocalizedText } from '@getrheo/contracts';
 import { dropShadowToNativeStyle, resolveNativeTextFontFamilyName, snapScaleValue } from '@getrheo/flow-runtime';
 import { resolveScaleInputSliderForRender } from '@getrheo/flow-runtime/scaleInputStyle';
-import { resolveCheckboxGlyphForRender } from '@getrheo/renderer-core';
+import { resolveCheckboxGlyphForRender, scaleAuthoredFontSize } from '@getrheo/renderer-core';
 import { useScreenCheckboxAck } from '@getrheo/flow-ui-state';
 import { useScreenInputDraft } from '@getrheo/flow-ui-state/draft';
 import { ChromeView, type Ctx, type RenderLayer } from '../LayerRendererShared';
@@ -129,8 +129,10 @@ export const TextInputView = ({
           ? 'url'
           : 'default';
   const childCtx: Ctx = { ...ctx, isRegionRoot: false, regionKind: undefined };
+  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
+  const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const inputPair = commonViewStylePair(
-    stripCommonLayoutForInner(stripFlowAxesForFlexChild(layer.style, ctx.parentStackDirection)),
+    stripCommonLayoutForInner(stripFlowAxesForFlexChild(resolvedOuter, ctx.parentStackDirection)),
     ctx.manifest.theme,
     ctx.theme,
     ctx.branding,
@@ -164,7 +166,7 @@ export const TextInputView = ({
           paddingVertical: 10,
           paddingHorizontal: 12,
           borderRadius: 10,
-          fontSize: 14,
+          fontSize: scaleAuthoredFontSize(14, ctx.fontScale ?? 1),
           minHeight: multiline ? 96 : undefined,
           textAlignVertical: multiline ? 'top' : 'center',
           backgroundColor: dark ? '#18181b' : '#fafafa',
@@ -195,11 +197,13 @@ export const ScaleInputView = ({
   const minLab = layer.minLabel ? resolveLocalizedText(layer.minLabel, ctx.locale) : String(layer.min);
   const maxLab = layer.maxLabel ? resolveLocalizedText(layer.maxLabel, ctx.locale) : String(layer.max);
   const slider = resolveScaleInputSliderForRender(layer, ctx.manifest.theme, ctx.theme);
+  const fontScale = ctx.fontScale ?? 1;
   const toTextStyle = (text: typeof slider.label) => {
     const fontFamily = resolveNativeTextFontFamilyName(ctx.branding, text.fontFamily, text.fontWeight);
+    const fontSize = scaleAuthoredFontSize(text.fontSizePx, fontScale) ?? text.fontSizePx;
     return {
       fontFamily,
-      fontSize: text.fontSizePx,
+      fontSize,
       fontWeight: text.fontWeight
         ? (String(text.fontWeight) as '400' | '600' | '700')
         : undefined,
@@ -207,24 +211,34 @@ export const ScaleInputView = ({
       opacity: text.opacity,
       textAlign: text.textAlign,
       lineHeight:
-        text.lineHeight !== undefined ? text.lineHeight * text.fontSizePx : undefined,
+        text.lineHeight !== undefined ? text.lineHeight * fontSize : undefined,
     };
   };
   const labelTextStyle = toTextStyle(slider.label);
   const valueTextStyle = toTextStyle(slider.value);
   const childCtx: Ctx = { ...ctx, isRegionRoot: false, regionKind: undefined };
+  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
+  const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const scalePair = commonViewStylePair(
-    stripCommonLayoutForInner(stripFlowAxesForFlexChild(layer.style, ctx.parentStackDirection)),
+    stripCommonLayoutForInner(stripFlowAxesForFlexChild(resolvedOuter, ctx.parentStackDirection)),
     ctx.manifest.theme,
     ctx.theme,
     ctx.branding,
   );
+  const scaleAlignToCrossAxis = (
+    align: typeof slider.value.textAlign,
+  ): ViewStyle['alignItems'] => {
+    if (align === 'left') return 'flex-start';
+    if (align === 'right') return 'flex-end';
+    return 'center';
+  };
   return (
     <ChromeView
       style={{
         flexDirection: 'column',
         gap: 8,
         ...scalePair.style,
+        alignItems: scaleAlignToCrossAxis(slider.value.textAlign),
       }}
       linearGradient={scalePair.linearGradient}
     >
@@ -232,7 +246,13 @@ export const ScaleInputView = ({
         <Fragment key={c.id}>{renderLayer(c, childCtx)}</Fragment>
       ))}
       {slider.showLabels ? (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignSelf: 'stretch',
+          }}
+        >
           <Text style={labelTextStyle}>{minLab}</Text>
           <Text style={labelTextStyle}>{maxLab}</Text>
         </View>
@@ -251,7 +271,9 @@ export const ScaleInputView = ({
           draftCtx?.setDraft({ kind: 'scale', value: snapScaleValue(layer, v) })
         }
       />
-      {slider.showValue ? <Text style={valueTextStyle}>{value}</Text> : null}
+      {slider.showValue ? (
+        <Text style={[valueTextStyle, { alignSelf: 'stretch' }]}>{value}</Text>
+      ) : null}
     </ChromeView>
   );
 };

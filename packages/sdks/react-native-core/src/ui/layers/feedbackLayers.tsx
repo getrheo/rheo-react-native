@@ -22,6 +22,7 @@ import {
   findManualSubmitInputLayer,
   formatCounterLayerDisplay,
   multiplyColorAlpha,
+  resolveCommonStyleAtWidth,
   resolveCounterAnimationDurationMs,
   resolveLoaderCircularSizePx,
   resolveLoaderLinearHeightPx,
@@ -37,6 +38,7 @@ import {
   stripFlowAxesForFlexChild,
   textContainerViewStylePair,
   textLayerStyle,
+  widthFor,
 } from '../styles';
 
 const flowProgressRatio = (manifest: FlowManifest, screenId: string): number => {
@@ -48,10 +50,12 @@ const flowProgressRatio = (manifest: FlowManifest, screenId: string): number => 
 };
 
 export const ProgressView = ({ layer, ctx }: { layer: ProgressLayer; ctx: Ctx }) => {
+  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
+  const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const ratio = flowProgressRatio(ctx.manifest, ctx.screen.id);
   // Bar height: authored via `style.height` (px); resolver supplies the
   // per-kind default for sparse manifests.
-  const h = resolveProgressLinearHeightPx(layer.style?.height);
+  const h = resolveProgressLinearHeightPx(resolvedOuter?.height);
   const track =
     (resolveThemedColor(ctx.manifest.theme, ctx.theme, layer.trackColor) as string | undefined) ??
     (ctx.theme === 'dark' ? '#3f3f46' : '#e4e4e7');
@@ -65,7 +69,7 @@ export const ProgressView = ({ layer, ctx }: { layer: ProgressLayer; ctx: Ctx })
     (ctx.theme === 'dark' ? '#fafafa' : '#0a0a0a');
   const progPair = commonViewStylePair(
     stripCommonLayoutForInner(
-      stripFlowAxesForFlexChild(layer.style, ctx.parentStackDirection),
+      stripFlowAxesForFlexChild(resolvedOuter, ctx.parentStackDirection),
     ),
     ctx.manifest.theme,
     ctx.theme,
@@ -77,6 +81,8 @@ export const ProgressView = ({ layer, ctx }: { layer: ProgressLayer; ctx: Ctx })
         accessibilityRole="progressbar"
         accessibilityValue={{ min: 0, max: 100, now: Math.round(ratio * 100) }}
         style={{
+          width: '100%',
+          alignSelf: 'stretch',
           height: h,
           borderRadius: Math.max(2, h / 2),
           backgroundColor: track,
@@ -98,6 +104,8 @@ const loaderAlignItems: Record<NonNullable<LoaderLayer['align']>, ViewStyle['ali
 };
 
 export const LoaderView = ({ layer, ctx }: { layer: LoaderLayer; ctx: Ctx }) => {
+  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
+  const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const frozenPreview = !ctx.interactive;
   const targetPct = layer.targetPercent ?? 100;
   const durationMs = layer.durationMs ?? 2000;
@@ -175,8 +183,8 @@ export const LoaderView = ({ layer, ctx }: { layer: LoaderLayer; ctx: Ctx }) => 
   // Circular size = `style.width` (validated equal to `style.height`); ring
   // thickness = `style.strokeWidth`. Linear bar height = `style.height`.
   // Resolvers supply the per-kind defaults when the manifest omits a value.
-  const size = resolveLoaderCircularSizePx(layer.style?.width);
-  const strokeW = resolveLoaderStrokeWidthPx(layer.style?.strokeWidth);
+  const size = resolveLoaderCircularSizePx(resolvedOuter?.width);
+  const strokeW = resolveLoaderStrokeWidthPx(resolvedOuter?.strokeWidth);
   const r = Math.max(1, (size - strokeW) / 2);
   const circ = 2 * Math.PI * r;
 
@@ -184,10 +192,10 @@ export const LoaderView = ({ layer, ctx }: { layer: LoaderLayer; ctx: Ctx }) => 
     strokeDashoffset: circ * (1 - anim.value * (targetPct / 100)),
   }));
 
-  const h = resolveLoaderLinearHeightPx(layer.style?.height);
+  const h = resolveLoaderLinearHeightPx(resolvedOuter?.height);
   const loaderPair = commonViewStylePair(
     stripCommonLayoutForInner(
-      stripFlowAxesForFlexChild(layer.style, ctx.parentStackDirection),
+      stripFlowAxesForFlexChild(resolvedOuter, ctx.parentStackDirection),
     ),
     ctx.manifest.theme,
     ctx.theme,
@@ -262,7 +270,13 @@ export const CounterView = ({ layer, ctx }: { layer: CounterLayer; ctx: Ctx }) =
     ctx.theme,
     ctx.branding,
   );
-  const wrapStyle: ViewStyle = counterPair.style;
+  const wrapStyle: ViewStyle = {
+    ...counterPair.style,
+    ...(resolvedStyle?.position !== 'absolute' && ctx.parentStackDirection === undefined
+      ? { width: widthFor(resolvedStyle?.width) ?? '100%' }
+      : {}),
+    ...(counterPair.linearGradient ? { overflow: 'hidden' } : {}),
+  };
   const startVal = layer.startValue;
   const endVal = layer.endValue;
   const delayMs = layer.delayMs ?? 0;
@@ -353,6 +367,7 @@ export const CounterView = ({ layer, ctx }: { layer: CounterLayer; ctx: Ctx }) =
         style={textLayerStyle(resolvedStyle, ctx.manifest.theme, ctx.theme, {
           inheritDocumentForeground: true,
           branding: ctx.branding,
+          fontScale: ctx.fontScale,
         })}
       >
         {display}

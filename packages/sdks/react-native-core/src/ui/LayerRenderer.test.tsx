@@ -19,6 +19,7 @@ const { act } = TestRenderer;
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const capturedViewStyles: Array<ViewStyle | ViewStyle[] | undefined> = [];
+let lastScrollViewProps: Record<string, unknown> = {};
 
 vi.mock('react-native', async () => {
   const React = await import('react');
@@ -31,7 +32,10 @@ vi.mock('react-native', async () => {
     },
     Text: passthrough('Text'),
     Image: passthrough('Image'),
-    ScrollView: passthrough('ScrollView'),
+    ScrollView: (props: Record<string, unknown> & { children?: ReactNode }) => {
+      lastScrollViewProps = props;
+      return React.createElement('ScrollView', props, props.children);
+    },
     useWindowDimensions: () => ({ width: 393, height: 852, scale: 3, fontScale: 1 }),
     AccessibilityInfo: {
       isReduceMotionEnabled: async () => false,
@@ -237,6 +241,28 @@ describe('LayerRenderer module', () => {
           style.paddingLeft === 12,
       ),
     ).toBe(true);
+    tree?.unmount();
+  });
+
+  it('uses dismiss-first keyboard tap policy on the body ScrollView', async () => {
+    const { LayerRenderer } = await import('./LayerRenderer');
+    const manifest = buildStressHarnessManifest('00000000-0000-0000-0000-00000000beef');
+    const screen = manifest.screens[0];
+    if (!screen) throw new Error('stress screen missing');
+
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(LayerRenderer, {
+          manifest,
+          screen,
+          interactive: false,
+          theme: 'light',
+        }),
+      );
+    });
+
+    expect(lastScrollViewProps.keyboardShouldPersistTaps).toBe('never');
     tree?.unmount();
   });
 });

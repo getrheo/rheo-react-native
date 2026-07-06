@@ -134,6 +134,10 @@ The resolve response carries an `ETag` of the form `"{assignmentVersion}-{versio
 when a validated entry exists; `304` reuses the cached manifest. `assignmentVersion`
 is incremented on every channel pointer change, so re-validation is essentially free.
 
+Debug / support: `listManifestResolveCacheEntries()` and `clearManifestResolveCache()` from the package root.
+
+**Analytics reliability:** events batch in memory and flush on a timer or at flow terminal. Queued events may be lost if the process is killed before flush. A disk-backed persistent queue is deferred on both RN and SwiftUI — see [`packages/sdks/docs/CROSS_SDK_INTEGRATION.md`](../docs/CROSS_SDK_INTEGRATION.md) for cross-SDK notes (including SwiftUI equivalents).
+
 ### Resolve fallback
 
 When `POST /v1/sdk/resolve` fails (network outage, 4xx/5xx, or any resolve error), `<Flow />` can show a **host-owned escape hatch** instead of blocking the user:

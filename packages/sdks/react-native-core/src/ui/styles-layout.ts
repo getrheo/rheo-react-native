@@ -18,15 +18,13 @@ export const widthFor = (w: WidthValue | undefined): RNViewStyle['width'] => {
   return widthFractions[w];
 };
 
-/**
- * Maps {@link CommonStyle} `height` to RN layout height. No fractional
- * values — heights are `auto`, `full`/`fill`, or px.
- */
+/** Maps {@link CommonStyle} `height` to RN layout height (fractions map to % of parent). */
 export const layoutHeightFor = (h: CommonStyle['height']): RNViewStyle['height'] => {
   if (h === undefined) return undefined;
   if (h === 'fill' || h === 'full') return '100%';
   if (h === 'auto') return 'auto';
-  return h;
+  if (typeof h === 'number') return h;
+  return widthFractions[h];
 };
 
 /** Default stack cross-axis is stretch; explicit start/center/end must not be overridden on children. */
@@ -96,6 +94,8 @@ export const flowChildLayoutViewStyle = (
   const h = resolved.height;
   if (typeof h === 'number') {
     out.height = h;
+  } else if (h !== undefined && h !== 'auto' && h !== 'fill' && h !== 'full') {
+    out.height = layoutHeightFor(h);
   }
 
   return out;

@@ -137,6 +137,7 @@ export const EmailPasswordAuthView = ({
     alignSelf,
     gap,
     ...outerPair.style,
+    ...(outerPair.linearGradient ? { overflow: 'hidden' } : {}),
   };
 
   const childCtxBase: Ctx = { ...ctx, isRegionRoot: false, regionKind: undefined };
@@ -261,6 +262,7 @@ export const EmailPasswordAuthView = ({
                   ctx.manifest.theme,
                   ctx.theme,
                   ctx.branding,
+                  ctx.fontScale,
                 );
                 const textPair = commonViewStylePair(
                   stripCommonLayoutForInner(childResolved),

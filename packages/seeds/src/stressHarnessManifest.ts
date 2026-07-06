@@ -1,11 +1,12 @@
 import { FlowManifestSchema, MANIFEST_SCHEMA_VERSION, type FlowManifest } from '@getrheo/contracts/manifest';
+import { layerKindGalleryScreens, layerStyleComboScreens } from './stressHarness/layerKindScreens.js';
 import { stressHarnessScreensEarly } from './stressHarness/screensEarly.js';
 import { stressHarnessScreensMid } from './stressHarness/screensMid.js';
 import { stressHarnessScreensLate } from './stressHarness/screensLate.js';
 import { stressHarnessDecisionNodes } from './stressHarness/decisionNodes.js';
 
-/** Exhaustive UI harness for builder, analytics, and SDK stress paths. */
-export const buildStressHarnessManifest = (flowId: string): FlowManifest =>
+/** Gold-standard layer + decision + integration harness for builder and SDK QA. */
+export const buildLayerStressHarnessManifest = (flowId: string): FlowManifest =>
   FlowManifestSchema.parse({
     flowId,
     schemaVersion: MANIFEST_SCHEMA_VERSION,
@@ -36,8 +37,13 @@ export const buildStressHarnessManifest = (flowId: string): FlowManifest =>
     sdkAttributeKeys: ['plan'],
     screens: [
       ...stressHarnessScreensEarly,
+      ...layerKindGalleryScreens(),
+      ...layerStyleComboScreens(),
       ...stressHarnessScreensMid,
       ...stressHarnessScreensLate,
     ],
     decisionNodes: stressHarnessDecisionNodes,
   });
+
+/** @deprecated Use {@link buildLayerStressHarnessManifest}. */
+export const buildStressHarnessManifest = buildLayerStressHarnessManifest;
