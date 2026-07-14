@@ -16,7 +16,11 @@ import {
   rendererCarouselSlideWidth,
   type RendererCarouselAlignAxis,
 } from '@getrheo/renderer-core';
-import { DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX, resolveCommonStyleAtWidth } from '@getrheo/flow-runtime';
+import {
+  DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX,
+  resolveCarouselLayoutAtWidth,
+  resolveCommonStyleAtWidth,
+} from '@getrheo/flow-runtime';
 import { ChromeView, type Ctx, type RenderLayer } from '../LayerRendererShared';
 import {
   borderStyle,
@@ -98,7 +102,14 @@ export const CarouselView = ({
   ctx: Ctx;
   renderLayer: RenderLayer;
 }) => {
-  const layout = rendererCarouselLayoutModel(layer);
+  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
+  const carLayout = resolveCarouselLayoutAtWidth(layer, w);
+  const layout = rendererCarouselLayoutModel({
+    ...layer,
+    pageAlignment: carLayout.pageAlignment,
+    pageSpacing: carLayout.pageSpacing,
+    pagePeek: carLayout.pagePeek,
+  });
   const initialIdx = rendererCarouselSlideIndex(layer, layout.slideCount);
   const [idx, setIdx] = useState(initialIdx);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -160,7 +171,6 @@ export const CarouselView = ({
     manifestTheme: ctx.manifest.theme,
   });
   const dots = <PageDots layer={layer} idx={idx} ctx={ctx} />;
-  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const carPair = commonViewStylePair(
     stripCommonLayoutForInner(stripFlowAxesForFlexChild(resolvedOuter, ctx.parentStackDirection)),

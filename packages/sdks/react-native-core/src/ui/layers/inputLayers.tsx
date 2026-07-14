@@ -9,8 +9,14 @@ import type { ViewStyle } from 'react-native';
 import Slider from '@react-native-community/slider';
 import type { CheckboxLayer, ScaleInputLayer, TextInputLayer } from '@getrheo/contracts';
 import { resolveLocalizedText } from '@getrheo/contracts';
-import { dropShadowToNativeStyle, resolveNativeTextFontFamilyName, snapScaleValue } from '@getrheo/flow-runtime';
+import { dropShadowToNativeStyle, filterDigitsOnlyInput, resolveNativeTextFontFamilyName, snapScaleValue } from '@getrheo/flow-runtime';
 import { resolveScaleInputSliderForRender } from '@getrheo/flow-runtime/scaleInputStyle';
+import {
+  resolveTextInputFieldChromeStyle,
+  resolveTextInputFieldForRender,
+  stripTextInputFieldChromeFromStyle,
+  textInputDefaultChromeColors,
+} from '@getrheo/flow-runtime/textInputStyle';
 import { resolveCheckboxGlyphForRender, scaleAuthoredFontSize } from '@getrheo/renderer-core';
 import { useScreenCheckboxAck } from '@getrheo/flow-ui-state';
 import { useScreenInputDraft } from '@getrheo/flow-ui-state/draft';
@@ -70,7 +76,6 @@ export const CheckboxView = ({ layer, ctx }: { layer: CheckboxLayer; ctx: Ctx })
     width: wrap.width ?? flowWidth,
     height: wrap.height ?? layoutHeightFor(resolvedOuter?.height),
     overflow: linearGradient ? 'hidden' : undefined,
-    alignSelf: 'stretch',
   };
   return (
     <View style={outerStyle}>
@@ -117,7 +122,6 @@ export const TextInputView = ({
   const placeholder = layer.placeholder
     ? resolveLocalizedText(layer.placeholder, ctx.locale)
     : '';
-  const dark = ctx.theme === 'dark';
   const mode = layer.inputType ?? 'plain';
   const multiline = mode === 'multiline';
   const keyboardType =
@@ -127,55 +131,91 @@ export const TextInputView = ({
         ? 'phone-pad'
         : mode === 'url'
           ? 'url'
-          : 'default';
+          : mode === 'number'
+            ? 'number-pad'
+            : 'default';
   const childCtx: Ctx = { ...ctx, isRegionRoot: false, regionKind: undefined };
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
-  const inputPair = commonViewStylePair(
-    stripCommonLayoutForInner(stripFlowAxesForFlexChild(resolvedOuter, ctx.parentStackDirection)),
+  const outerPair = commonViewStylePair(
+    stripCommonLayoutForInner(
+      stripFlowAxesForFlexChild(
+        stripTextInputFieldChromeFromStyle(resolvedOuter),
+        ctx.parentStackDirection,
+      ),
+    ),
     ctx.manifest.theme,
     ctx.theme,
     ctx.branding,
   );
+  const fieldChrome = resolveTextInputFieldChromeStyle(resolvedOuter, ctx.theme);
+  const fieldPair = commonViewStylePair(
+    fieldChrome,
+    ctx.manifest.theme,
+    ctx.theme,
+    ctx.branding,
+  );
+  const field = resolveTextInputFieldForRender(layer, ctx.manifest.theme, ctx.theme);
+  const fontScale = ctx.fontScale ?? 1;
+  const fieldFontFamily = resolveNativeTextFontFamilyName(
+    ctx.branding,
+    field.fontFamily,
+    field.fontWeight,
+  );
+  const fieldFontSize = scaleAuthoredFontSize(field.fontSizePx, fontScale) ?? field.fontSizePx;
+  const fieldTextStyle = {
+    fontFamily: fieldFontFamily,
+    fontSize: fieldFontSize,
+    fontWeight: field.fontWeight
+      ? (String(field.fontWeight) as '400' | '600' | '700')
+      : undefined,
+    color: field.color,
+    opacity: field.opacity,
+    textAlign: field.textAlign,
+    lineHeight:
+      field.lineHeight !== undefined ? field.lineHeight * fieldFontSize : undefined,
+    letterSpacing:
+      field.letterSpacing !== undefined ? field.letterSpacing * fieldFontSize : undefined,
+  };
+  const placeholderColor = textInputDefaultChromeColors(ctx.theme).placeholder;
   return (
-    <ChromeView
+    <View
       style={{
         flexDirection: 'column',
         gap: 8,
-        ...inputPair.style,
+        ...outerPair.style,
       }}
-      linearGradient={inputPair.linearGradient}
     >
       {layer.children?.map((c) => (
         <Fragment key={c.id}>{renderLayer(c, childCtx)}</Fragment>
       ))}
-      <TextInput
-        editable={ctx.interactive}
-        placeholder={placeholder}
-        placeholderTextColor={dark ? '#71717a' : '#a1a1aa'}
-        maxLength={layer.maxLength}
-        value={value}
-        multiline={multiline}
-        keyboardType={keyboardType}
-        autoCapitalize={mode === 'email' ? 'none' : 'sentences'}
-        secureTextEntry={layer.classification === 'sensitive' && !multiline}
-        onChangeText={(next) =>
-          draftCtx?.setDraft(next === '' ? null : { kind: 'text', value: next })
-        }
-        style={{
-          paddingVertical: 10,
-          paddingHorizontal: 12,
-          borderRadius: 10,
-          fontSize: scaleAuthoredFontSize(14, ctx.fontScale ?? 1),
-          minHeight: multiline ? 96 : undefined,
-          textAlignVertical: multiline ? 'top' : 'center',
-          backgroundColor: dark ? '#18181b' : '#fafafa',
-          color: dark ? '#fafafa' : '#0a0a0a',
-          borderWidth: 1,
-          borderColor: dark ? '#27272a' : '#e4e4e7',
-        }}
-      />
-    </ChromeView>
+      <ChromeView style={fieldPair.style} linearGradient={fieldPair.linearGradient}>
+        <TextInput
+          editable={ctx.interactive}
+          placeholder={placeholder}
+          placeholderTextColor={placeholderColor}
+          maxLength={layer.maxLength}
+          value={value}
+          multiline={multiline}
+          keyboardType={keyboardType}
+          autoCapitalize={mode === 'email' ? 'none' : 'sentences'}
+          secureTextEntry={layer.classification === 'sensitive' && !multiline}
+          onChangeText={(next) => {
+            const value = mode === 'number' ? filterDigitsOnlyInput(next) : next;
+            draftCtx?.setDraft(value === '' ? null : { kind: 'text', value });
+          }}
+          style={{
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            padding: 0,
+            margin: 0,
+            minHeight: multiline ? 96 : undefined,
+            textAlignVertical: multiline ? 'top' : 'center',
+            ...fieldTextStyle,
+          }}
+        />
+      </ChromeView>
+    </View>
   );
 };
 
@@ -212,6 +252,8 @@ export const ScaleInputView = ({
       textAlign: text.textAlign,
       lineHeight:
         text.lineHeight !== undefined ? text.lineHeight * fontSize : undefined,
+      letterSpacing:
+        text.letterSpacing !== undefined ? text.letterSpacing * fontSize : undefined,
     };
   };
   const labelTextStyle = toTextStyle(slider.label);
@@ -266,7 +308,12 @@ export const ScaleInputView = ({
         minimumTrackTintColor={slider.fillColor}
         maximumTrackTintColor={slider.trackColor}
         thumbTintColor={slider.thumbColor}
-        style={{ width: '100%', height: slider.thumbSizePx }}
+        // Community Slider couples track + thumb into one height; approximate
+        // authored trackHeight by sizing the control to max(thumb, track).
+        style={{
+          width: '100%',
+          height: Math.max(slider.thumbSizePx, slider.trackHeightPx),
+        }}
         onValueChange={(v) =>
           draftCtx?.setDraft({ kind: 'scale', value: snapScaleValue(layer, v) })
         }

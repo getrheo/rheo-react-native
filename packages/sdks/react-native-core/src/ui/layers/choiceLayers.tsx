@@ -8,6 +8,7 @@ import {
   DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX,
   choiceGridTileWidth,
   findOptionStackForChoice,
+  resolveChoiceLayoutAtWidth,
   resolveCommonStyleAtWidth,
   resolveLayerGap,
   screenHasContinueButton,
@@ -72,22 +73,31 @@ const choiceOuterPair = (
 
 const choiceLayout = (
   layer: ChoiceLayer,
-): { container: ViewStyle; item: ViewStyle | undefined; useMeasuredGrid: boolean } => {
-  const gap = resolveLayerGap(layer.kind, layer.gap);
-  if (layer.direction === 'grid') {
+  ctx: Ctx,
+): { container: ViewStyle; item: ViewStyle | undefined; useMeasuredGrid: boolean; direction: ChoiceLayer['direction']; gap: number; columns: number } => {
+  const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
+  const layout = resolveChoiceLayoutAtWidth(layer, w);
+  const gap = resolveLayerGap(layer.kind, layout.gap);
+  if (layout.direction === 'grid') {
     return {
       container: { flexDirection: 'row', flexWrap: 'wrap', gap },
       item: undefined,
       useMeasuredGrid: true,
+      direction: layout.direction,
+      gap,
+      columns: Math.max(1, layout.columns ?? 2),
     };
   }
   return {
     container: {
-      flexDirection: layer.direction === 'horizontal' ? 'row' : 'column',
+      flexDirection: layout.direction === 'horizontal' ? 'row' : 'column',
       gap,
     },
     item: undefined,
     useMeasuredGrid: false,
+    direction: layout.direction,
+    gap,
+    columns: Math.max(1, layout.columns ?? 2),
   };
 };
 
@@ -136,6 +146,7 @@ const ChoiceOptionRow = ({
   onPress,
   itemStyle,
   renderLayer,
+  listDirection,
 }: {
   parent: ChoiceLayer;
   optionId: string;
@@ -144,6 +155,7 @@ const ChoiceOptionRow = ({
   onPress: () => void;
   itemStyle?: ViewStyle;
   renderLayer: RenderLayer;
+  listDirection: ChoiceLayer['direction'];
 }) => {
   const stack = findOptionStackForChoice(parent, optionId);
   if (!stack) return null;
@@ -172,7 +184,7 @@ const ChoiceOptionRow = ({
         ...ctx,
         isRegionRoot: false,
         regionKind: undefined,
-        parentStackDirection: parent.direction === 'horizontal' ? 'horizontal' : 'vertical',
+        parentStackDirection: listDirection === 'horizontal' ? 'horizontal' : 'vertical',
       })}
     </ChoicePressable>
   );
@@ -180,14 +192,14 @@ const ChoiceOptionRow = ({
 
 const ChoiceOptionsContainer = ({
   layer,
+  ctx,
   children,
 }: {
   layer: ChoiceLayer;
+  ctx: Ctx;
   children: ReactNode;
 }) => {
-  const { container, useMeasuredGrid } = choiceLayout(layer);
-  const gap = resolveLayerGap(layer.kind, layer.gap);
-  const columns = Math.max(1, layer.columns ?? 2);
+  const { container, useMeasuredGrid, gap, columns } = choiceLayout(layer, ctx);
   if (useMeasuredGrid) {
     return (
       <ChoiceGridList columns={columns} gap={gap}>
@@ -211,13 +223,13 @@ export const SingleChoiceView = ({
   const manualSubmit = screenHasContinueButton(ctx.screen);
   const selectedId =
     draftCtx?.draft?.kind === 'choice' ? draftCtx.draft.choiceId : null;
-  const { item } = choiceLayout(layer);
+  const { item, direction } = choiceLayout(layer, ctx);
 
   const outer = choiceOuterPair(layer, ctx);
 
   return (
     <ChromeView style={outer.style} linearGradient={outer.linearGradient}>
-      <ChoiceOptionsContainer layer={layer}>
+      <ChoiceOptionsContainer layer={layer} ctx={ctx}>
         {layer.optionBindings.map((b) => (
           <ChoiceOptionRow
             key={b.optionId}
@@ -226,6 +238,7 @@ export const SingleChoiceView = ({
             ctx={ctx}
             isSelected={manualSubmit && selectedId === b.optionId}
             itemStyle={item}
+            listDirection={direction}
             renderLayer={renderLayer}
             onPress={() => {
               if (manualSubmit) {
@@ -269,13 +282,13 @@ export const MultipleChoiceView = ({
     );
   };
 
-  const { item } = choiceLayout(layer);
+  const { item, direction } = choiceLayout(layer, ctx);
 
   const outer = choiceOuterPair(layer, ctx);
 
   return (
     <ChromeView style={outer.style} linearGradient={outer.linearGradient}>
-      <ChoiceOptionsContainer layer={layer}>
+      <ChoiceOptionsContainer layer={layer} ctx={ctx}>
         {layer.optionBindings.map((b) => (
           <ChoiceOptionRow
             key={b.optionId}
@@ -284,6 +297,7 @@ export const MultipleChoiceView = ({
             ctx={ctx}
             isSelected={selected.has(b.optionId)}
             itemStyle={item}
+            listDirection={direction}
             renderLayer={renderLayer}
             onPress={() => toggle(b.optionId)}
           />

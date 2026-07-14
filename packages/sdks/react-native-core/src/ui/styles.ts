@@ -3,7 +3,7 @@ import type { Border, ButtonStyle, CommonStyle, ImageStyle as LayerImageStyle, P
 
 import type {BrandGradientNativeLinear} from '@getrheo/flow-runtime';
 import { DEFAULT_THEMED_FOREGROUND } from '@getrheo/contracts';
-import { nativeBrandBackgroundFromThemedColor, resolveThemedColor, buttonVariantChromeForTheme, multiplyColorAlpha, resolveNativeTextFontFamilyName, TEXT_FONT_FAMILY_SYSTEM_UI } from '@getrheo/flow-runtime';
+import { nativeBrandBackgroundFromThemedColor, resolveThemedColor, buttonVariantChromeForTheme, multiplyColorAlpha, resolveCommonBackgroundOpacity, resolveCommonLayerOpacity, resolveNativeTextFontFamilyName, TEXT_FONT_FAMILY_SYSTEM_UI } from '@getrheo/flow-runtime';
 import { scaleAuthoredFontSize } from '@getrheo/renderer-core';
 import type { ButtonLayerVariant } from '@getrheo/contracts';
 import { dropShadowToNativeStyle } from '@getrheo/flow-runtime';
@@ -105,15 +105,23 @@ export const commonViewStylePair = (
   const inner = stripCommonLayoutForInner(s);
   if (!inner) return { style: {}, linearGradient: null };
   const nb = nativeBrandBackgroundFromThemedColor(theme, branding, palette, inner.background);
-  const { background: _b, ...rest } = inner;
+  const { background: _b, backgroundOpacity: _bo, ...rest } = inner;
+  const bgColor =
+    nb.solid !== undefined
+      ? multiplyColorAlpha(nb.solid, resolveCommonBackgroundOpacity(inner))
+      : undefined;
   const style = omitUndefinedStyleKeys({
     ...paddingStyle(rest.padding),
     ...marginStyle(rest.margin),
     borderRadius: rest.radius,
-    backgroundColor: nb.solid,
-    opacity: rest.opacity,
+    backgroundColor: bgColor,
+    opacity: resolveCommonLayerOpacity(inner),
     width: widthFor(rest.width),
     height: layoutHeightFor(rest.height),
+    minWidth: rest.minWidth,
+    maxWidth: rest.maxWidth,
+    minHeight: rest.minHeight,
+    maxHeight: rest.maxHeight,
     ...borderStyle(rest.border, theme, palette),
     ...dropShadowToNativeStyle(rest.shadow, theme, palette),
   });
@@ -129,7 +137,8 @@ export const commonViewStyle = (
 
 /**
  * Outer View chrome for text / counter layers: same as {@link commonViewStyle} but applies
- * {@link LayerTextStyle.backgroundOpacity} only to the background fill (matches web `textCss`).
+ * {@link LayerTextStyle.backgroundOpacity} only to the background fill (matches web `textCss`),
+ * including linear gradient underlay stop colors.
  */
 export const textContainerViewStylePair = (
   s: LayerTextStyle | undefined,
@@ -143,15 +152,28 @@ export const textContainerViewStylePair = (
   const styled = inner as LayerTextStyle;
   const nb = nativeBrandBackgroundFromThemedColor(theme, branding, palette, styled.background);
   const bgColor =
-    nb.solid !== undefined ? multiplyColorAlpha(nb.solid, styled.backgroundOpacity) : undefined;
+    nb.solid !== undefined
+      ? multiplyColorAlpha(nb.solid, resolveCommonBackgroundOpacity(styled))
+      : undefined;
   const { background: _bg, backgroundOpacity: _bo, ...chromeOnly } = styled;
   const base = commonViewStylePair(chromeOnly, theme, palette, branding);
+  const linearGradient =
+    nb.linear == null
+      ? null
+      : styled.backgroundOpacity === undefined || styled.backgroundOpacity >= 1
+        ? nb.linear
+        : {
+            ...nb.linear,
+            colors: nb.linear.colors.map(
+              (c) => multiplyColorAlpha(c, styled.backgroundOpacity) ?? c,
+            ),
+          };
   return {
     style: omitUndefinedStyleKeys({
       ...base.style,
       ...(bgColor !== undefined ? { backgroundColor: bgColor } : {}),
     }),
-    linearGradient: nb.linear ?? null,
+    linearGradient,
   };
 };
 
@@ -190,6 +212,10 @@ export const textLayerStyle = (
     textAlign: s.align,
     lineHeight:
       s.lineHeight && fontSize ? s.lineHeight * fontSize : undefined,
+    letterSpacing:
+      s.letterSpacing !== undefined && fontSize
+        ? s.letterSpacing * fontSize
+        : undefined,
   });
 };
 
@@ -312,9 +338,9 @@ export const buttonPalette = (
 };
 
 /**
- * RN does not inherit typography from parent Views onto `<Text>`. Match the
- * web sim `buttonBaseStyle` defaults so label text matches the canvas when
- * the author only styled the button chrome or left the text child sparse.
+ * RN does not inherit typography from parent Views onto `<Text>`.
+ * Variant color fills when the text child omits color; fontSize / weight / align
+ * defaults are not applied onto text children (authored text style wins or stays unset).
  */
 export const mergeButtonInlineLabelStyle = (
   palette: ButtonVariantPalette,
@@ -325,12 +351,6 @@ export const mergeButtonInlineLabelStyle = (
   branding?: Branding,
   fontScale = 1,
 ): RNTextStyle => {
-  const defaults: RNTextStyle = {
-    fontSize: scaleAuthoredFontSize(13, fontScale),
-    fontWeight: '600',
-    textAlign: 'center',
-    color: palette.color,
-  };
   const btnS = buttonContentStyle(buttonStyle, theme, paletteMode, fontScale);
   const textS = textLayerStyle(textStyle, theme, paletteMode, { branding, fontScale });
   const pickDefined = (o: RNTextStyle): RNTextStyle => {
@@ -342,12 +362,12 @@ export const mergeButtonInlineLabelStyle = (
   };
   const btnDefined = pickDefined(btnS);
   const textDefined = pickDefined(textS);
-  // Match web `mergeDefinedCss(textCss, buttonLabelCss)` — button chrome wins over sparse text children.
+  // Match web `mergeButtonInlineLabelCss` — button chrome fills gaps; text child wins.
+  // No default fontSize 13 / weight 600 / textAlign center onto text children.
   return {
-    ...defaults,
-    ...textDefined,
     ...btnDefined,
-    color: btnS.color ?? textS.color ?? palette.color,
+    ...textDefined,
+    color: textS.color ?? btnS.color ?? palette.color,
   };
 };
 

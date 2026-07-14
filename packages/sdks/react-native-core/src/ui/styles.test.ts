@@ -20,4 +20,18 @@ describe('textLayerStyle', () => {
       textLayerStyle({ color: '#ef4444' }, undefined, 'dark', { inheritDocumentForeground: true }).color,
     ).toBe('#ef4444');
   });
+
+  it('converts authored line height and letter spacing to native px', () => {
+    expect(
+      textLayerStyle(
+        { fontSize: 20, lineHeight: 1.4, letterSpacing: 0.05 },
+        undefined,
+        'dark',
+      ),
+    ).toMatchObject({
+      fontSize: 20,
+      lineHeight: 28,
+      letterSpacing: 1,
+    });
+  });
 });

@@ -12,6 +12,7 @@ import { resolveLocalizedText } from '@getrheo/contracts';
 import {
   DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX,
   resolveAndInterpolateLocalizedText,
+  resolveAuthLayoutAtWidth,
   resolveButtonLayoutAtWidth,
   resolveButtonStyleAtWidth,
   resolveCommonStyleAtWidth,
@@ -67,7 +68,8 @@ export const EmailPasswordAuthView = ({
   const mode = layer.mode;
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
-  const gap = resolveLayerGap(layer.kind, layer.gap);
+  const authLayout = resolveAuthLayoutAtWidth(layer, w);
+  const gap = resolveLayerGap(layer.kind, authLayout.gap);
   const simInputColors = rendererEmailPasswordSimInputColors(ctx.theme);
 
   const inputChrome: React.ComponentProps<typeof TextInput>['style'] = {
@@ -118,11 +120,11 @@ export const EmailPasswordAuthView = ({
   };
 
   const alignSelf =
-    layer.align === 'end'
+    authLayout.align === 'end'
       ? 'flex-end'
-      : layer.align === 'center'
+      : authLayout.align === 'center'
         ? 'center'
-        : layer.align === 'stretch'
+        : authLayout.align === 'stretch'
           ? 'stretch'
           : 'flex-start';
 

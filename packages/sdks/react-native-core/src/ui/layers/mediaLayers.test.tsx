@@ -247,6 +247,26 @@ describe('native mediaLayers smoke', () => {
     tree?.unmount();
   });
 
+  it('LottieLayerView maps fit fill to resizeMode stretch', async () => {
+    const layer: LottieLayer = {
+      ...findLayer<LottieLayer>('lyr_sm_lottie'),
+      media: { mediaAssetId: 'asset-lottie' },
+      style: { ...(findLayer<LottieLayer>('lyr_sm_lottie').style ?? {}), fit: 'fill', width: 80, height: 80 },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(LottieLayerView, {
+          layer,
+          ctx: smokeCtx({ mediaMap: { 'asset-lottie': 'https://example.com/anim.json' } }),
+        }),
+      );
+    });
+    const lottie = tree!.root.findByType('LottieView');
+    expect(lottie.props.resizeMode).toBe('stretch');
+    tree?.unmount();
+  });
+
   it('LottieLayerView forwards source to lottie mock', async () => {
     const layer: LottieLayer = {
       ...findLayer<LottieLayer>('lyr_sm_lottie'),
