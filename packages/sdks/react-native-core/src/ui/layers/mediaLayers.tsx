@@ -67,10 +67,14 @@ export const ImageView = ({ layer, ctx }: { layer: ImageLayer; ctx: Ctx }) => {
   const placeholderBg = ctx.theme === 'dark' ? '#18181b' : '#f4f4f5';
   const hasAuthorBg =
     linearGradient != null || outerStyle.backgroundColor !== undefined;
+  const authoredRadius = resolvedStyle?.radius;
   const innerStyle = {
     ...(useIntrinsicSize
-      ? { borderRadius: outerStyle.borderRadius ?? 10 }
+      ? authoredRadius !== undefined
+        ? { borderRadius: authoredRadius }
+        : {}
       : mediaLayerInnerFillStyle(resolvedStyle)),
+    ...(!useIntrinsicSize && authoredRadius !== undefined ? { borderRadius: authoredRadius } : {}),
     ...(!hasAuthorBg && !url ? { backgroundColor: placeholderBg } : {}),
   };
   const r = innerStyle.borderRadius as number | undefined;
@@ -184,8 +188,11 @@ export const LottieLayerView = ({ layer, ctx }: { layer: LottieLayer; ctx: Ctx }
     ...(!hasAuthorBg && !url ? { backgroundColor: placeholderBg } : {}),
   };
   const fit = resolvedStyle?.fit ?? 'contain';
+  // Image parity: fill → stretch. lottie-react-native's public types only list
+  // cover|contain|center; native iOS/Android currently ignore unknown modes, so
+  // stretch is best-effort until the library wires scaleToFill / FIT_XY.
   const resizeMode =
-    fit === 'cover' ? 'cover' : fit === 'fill' ? 'cover' : 'contain';
+    fit === 'contain' ? 'contain' : fit === 'fill' ? 'stretch' : 'cover';
   const r = innerStyle.borderRadius as number | undefined;
   return (
     <ChromeView style={[outerStyle, shellFill]} linearGradient={linearGradient}>
@@ -196,7 +203,7 @@ export const LottieLayerView = ({ layer, ctx }: { layer: LottieLayer; ctx: Ctx }
             source={{ uri: url }}
             autoPlay={playing}
             loop={loopPlay}
-            resizeMode={resizeMode}
+            resizeMode={resizeMode as 'contain' | 'cover' | 'center'}
             onAnimationFinish={(isCancelled) => {
               if (isCancelled || loopPlay || completedRef.current) return;
               completedRef.current = true;

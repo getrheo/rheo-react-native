@@ -40,6 +40,7 @@ import { ChromeView, type Ctx } from './LayerRendererShared';
 import { HyperlinkView, StackView, TextView } from './layers/layoutLayers';
 import { IconView, ImageView, LottieLayerView, VideoLayerView } from './layers/mediaLayers';
 import { CheckboxView, ScaleInputView, TextInputView } from './layers/inputLayers';
+import { WheelPickerView } from './layers/wheelPickerLayers';
 import { EmailPasswordAuthView, OAuthLoginView } from './layers/authLayers';
 import { ScreenShellBackdrop } from './screenBackground';
 
@@ -111,6 +112,8 @@ const renderLayerInner = (layer: Layer, ctx: Ctx): ReactNode => {
       return <TextInputView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
     case 'scale_input':
       return <ScaleInputView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
+    case 'wheel_picker':
+      return <WheelPickerView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
     case 'oauth_provider':
       return <View />;
     case 'oauth_login':

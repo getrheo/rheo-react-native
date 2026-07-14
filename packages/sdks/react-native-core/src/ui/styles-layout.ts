@@ -46,7 +46,7 @@ export const stackChildHeightFillStyle = (resolved: CommonStyle | undefined): RN
   };
 };
 
-/** Omit width/height on inner chrome — applied on {@link LayerMotionShell} when a stack flex child. */
+/** Omit width/height/size clamps on inner chrome — applied on {@link LayerMotionShell} when a stack flex child. */
 export const stripFlowAxesForFlexChild = (
   s: CommonStyle | undefined,
   parentStackDirection: 'vertical' | 'horizontal' | undefined,
@@ -55,6 +55,10 @@ export const stripFlowAxesForFlexChild = (
   const out: CommonStyle = { ...s };
   delete out.width;
   delete out.height;
+  delete out.minWidth;
+  delete out.maxWidth;
+  delete out.minHeight;
+  delete out.maxHeight;
   return Object.keys(out).length ? out : undefined;
 };
 
@@ -69,7 +73,16 @@ export const flowChildLayoutViewStyle = (
 ): RNViewStyle => {
   if (!resolved || resolved.position === 'absolute') return {};
   const out: RNViewStyle = { ...stackChildHeightFillStyle(resolved) };
-  if (!parentStackDirection) return out;
+  const applySizeClamps = () => {
+    if (resolved.minWidth !== undefined) out.minWidth = resolved.minWidth;
+    if (resolved.maxWidth !== undefined) out.maxWidth = resolved.maxWidth;
+    if (resolved.minHeight !== undefined) out.minHeight = resolved.minHeight;
+    if (resolved.maxHeight !== undefined) out.maxHeight = resolved.maxHeight;
+  };
+  if (!parentStackDirection) {
+    applySizeClamps();
+    return out;
+  }
 
   const crossStretch = parentAlignUsesCrossAxisStretch(parentStackAlign);
   const w = resolved.width;
@@ -97,6 +110,8 @@ export const flowChildLayoutViewStyle = (
   } else if (h !== undefined && h !== 'auto' && h !== 'fill' && h !== 'full') {
     out.height = layoutHeightFor(h);
   }
+  // Authored clamps override flex defaults such as `minWidth: 0` / `minHeight: 0`.
+  applySizeClamps();
 
   return out;
 };
@@ -113,6 +128,10 @@ export const stripCommonLayoutForInner = (s: CommonStyle | undefined): CommonSty
   if (wasAbsolute) {
     delete out.width;
     delete out.height;
+    delete out.minWidth;
+    delete out.maxWidth;
+    delete out.minHeight;
+    delete out.maxHeight;
   }
   return Object.keys(out).length ? out : undefined;
 };
@@ -135,6 +154,10 @@ export const wrapperLayoutViewStyle = (resolved: CommonStyle | undefined): RNVie
     if (wf !== undefined) out.width = wf;
     const hf = layoutHeightFor(resolved.height);
     if (hf !== undefined) out.height = hf;
+    if (resolved.minWidth !== undefined) out.minWidth = resolved.minWidth;
+    if (resolved.maxWidth !== undefined) out.maxWidth = resolved.maxWidth;
+    if (resolved.minHeight !== undefined) out.minHeight = resolved.minHeight;
+    if (resolved.maxHeight !== undefined) out.maxHeight = resolved.maxHeight;
   }
   return out;
 };

@@ -9,7 +9,10 @@ import type { Ctx, RenderLayer } from '../LayerRendererShared';
 
 type TestNode = { props: Record<string, unknown> };
 type ReactTestRenderer = {
-  root: { findAllByType: (type: string) => TestNode[] };
+  root: {
+    findByType: (type: string) => TestNode;
+    findAllByType: (type: string) => TestNode[];
+  };
   unmount: () => void;
 };
 type RtrModule = {
@@ -23,7 +26,7 @@ const { act } = TestRenderer;
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('@react-native-community/slider', () => ({
-  default: () => null,
+  default: (props: Record<string, unknown>) => createElement('Slider', props),
 }));
 
 vi.mock('@getrheo/flow-ui-state', () => ({
@@ -113,10 +116,26 @@ describe('CheckboxView brand gradient overflow clip', () => {
     expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
     tree?.unmount();
   });
+
+  it('does not force alignSelf stretch when width is hug/auto', async () => {
+    const layer: CheckboxLayer = {
+      id: 'lyr_chk_hug',
+      kind: 'checkbox',
+      fieldKey: 'agree',
+      style: { width: 'auto' },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(createElement(CheckboxView, { layer, ctx: smokeCtx() }));
+    });
+    const root = tree!.root.findAllByType('View')[0];
+    expect(flattenStyle(root?.props.style).alignSelf).not.toBe('stretch');
+    tree?.unmount();
+  });
 });
 
 describe('TextInputView brand gradient overflow clip', () => {
-  it('sets overflow hidden on outer chrome when background is a brand gradient', async () => {
+  it('sets overflow hidden on field chrome when background is a brand gradient', async () => {
     const layer: TextInputLayer = {
       id: 'lyr_ti_gradient',
       kind: 'text_input',
@@ -130,8 +149,40 @@ describe('TextInputView brand gradient overflow clip', () => {
         createElement(TextInputView, { layer, ctx: gradientCtx(), renderLayer: noopRender }),
       );
     });
-    const root = tree!.root.findAllByType('View')[0];
-    expect(flattenStyle(root?.props.style).overflow).toBe('hidden');
+    const fieldChrome = tree!.root
+      .findAllByType('View')
+      .map((node) => flattenStyle(node.props.style))
+      .find((style) => style.overflow === 'hidden');
+    expect(fieldChrome?.overflow).toBe('hidden');
+    tree?.unmount();
+  });
+
+  it('applies authored style chrome to the field shell, not a hardcoded gray input', async () => {
+    const layer: TextInputLayer = {
+      id: 'lyr_ti_chrome',
+      kind: 'text_input',
+      fieldKey: 'name',
+      classification: 'safe',
+      style: { background: '#ffffff', border: { width: 2, color: '#000000' }, radius: 24 },
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(TextInputView, { layer, ctx: smokeCtx({ theme: 'light' }), renderLayer: noopRender }),
+      );
+    });
+    const fieldChrome = tree!.root
+      .findAllByType('View')
+      .map((node) => flattenStyle(node.props.style))
+      .find((style) => style.backgroundColor === '#ffffff');
+    expect(fieldChrome).toMatchObject({
+      backgroundColor: '#ffffff',
+      borderWidth: 2,
+      borderColor: '#000000',
+      borderRadius: 24,
+    });
+    const input = tree!.root.findByType('TextInput');
+    expect(flattenStyle(input.props.style).backgroundColor).toBe('transparent');
     tree?.unmount();
   });
 });
@@ -180,6 +231,29 @@ describe('ScaleInputView brand gradient overflow clip', () => {
       .map((node) => flattenStyle(node.props.style))
       .find((style) => style.flexDirection === 'row' && style.justifyContent === 'space-between');
     expect(labelRow?.alignSelf).toBe('stretch');
+    tree?.unmount();
+  });
+
+  it('maps trackHeight into Slider height (at least trackHeight)', async () => {
+    const layer: ScaleInputLayer = {
+      id: 'lyr_scale_track',
+      kind: 'scale_input',
+      fieldKey: 'rating',
+      min: 1,
+      max: 5,
+      defaultValue: 3,
+      trackHeight: 12,
+      thumbSize: 8,
+    };
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(ScaleInputView, { layer, ctx: smokeCtx(), renderLayer: noopRender }),
+      );
+    });
+    const slider = tree!.root.findByType('Slider');
+    const style = flattenStyle(slider.props.style);
+    expect(style.height).toBeGreaterThanOrEqual(12);
     tree?.unmount();
   });
 });

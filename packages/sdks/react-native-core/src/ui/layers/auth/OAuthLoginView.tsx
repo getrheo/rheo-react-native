@@ -6,6 +6,7 @@ import { oauthLoginManifestProviderFromLayer, oauthPresetEffectiveLabel, resolve
 import {
   DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX,
   resolveAndInterpolateLocalizedText,
+  resolveAuthLayoutAtWidth,
   resolveButtonLayoutAtWidth,
   resolveButtonStyleAtWidth,
   resolveCommonStyleAtWidth,
@@ -48,8 +49,9 @@ export const OAuthLoginView = ({
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
-  const gap = resolveLayerGap(layer.kind, layer.gap);
-  const alignAxis = rendererOAuthLoginAlignAxis(layer.align);
+  const authLayout = resolveAuthLayoutAtWidth(layer, w);
+  const gap = resolveLayerGap(layer.kind, authLayout.gap);
+  const alignAxis = rendererOAuthLoginAlignAxis(authLayout.align);
   const alignSelf = oauthAlignToNative(alignAxis);
   const muted = ctx.theme === 'dark' ? '#a1a1aa' : '#52525b';
 

@@ -12,6 +12,7 @@ import {
   DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX,
   resolveAndInterpolateLocalizedText,
   resolveCommonStyleAtWidth,
+  resolveHyperlinkLayoutAtWidth,
   resolveHyperlinkPreviewLabel,
   resolveLayerGap,
   resolveStackLayoutAtWidth,
@@ -61,11 +62,7 @@ export const StackView = ({
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const layout = resolveStackLayoutAtWidth(layer, w);
   const isVertical = layout.direction === 'vertical';
-  const justifyContent =
-    justifyFor(layer.distribution) ??
-    (layer.justify
-      ? justifyFor(layer.justify as 'start' | 'center' | 'end')
-      : undefined);
+  const justifyContent = justifyFor(layer.distribution);
   const isRoot = ctx.isRegionRoot === true;
   const resolvedStyle = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
   const stripped = stripCommonLayoutForInner(
@@ -243,7 +240,8 @@ export const HyperlinkView = ({
     ...(outerPair.linearGradient ? { overflow: 'hidden' } : {}),
   };
   const href = layer.href.trim();
-  const isVertical = (layer.direction ?? 'horizontal') === 'vertical';
+  const linkLayout = resolveHyperlinkLayoutAtWidth(layer, w);
+  const isVertical = (linkLayout.direction ?? 'horizontal') === 'vertical';
   const open = (): void => {
     if (!ctx.interactive) return;
     void Linking.openURL(href)
@@ -252,7 +250,7 @@ export const HyperlinkView = ({
   };
   const inner: ViewStyle = {
     flexDirection: isVertical ? 'column' : 'row',
-    gap: resolveLayerGap('hyperlink', layer.gap),
+    gap: resolveLayerGap('hyperlink', linkLayout.gap),
     alignItems: alignFor(layer.align),
     justifyContent: justifyFor(layer.distribution),
     flexWrap: layer.wrap ? 'wrap' : 'nowrap',

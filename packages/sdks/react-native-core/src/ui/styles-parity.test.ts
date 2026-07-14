@@ -105,6 +105,15 @@ describe('native styles parity', () => {
     });
   });
 
+  it('flowChildLayoutViewStyle emits authored maxWidth on a flex child shell', () => {
+    expect(
+      flowChildLayoutViewStyle({ width: 'full', maxWidth: 100 }, 'horizontal'),
+    ).toMatchObject({
+      flex: 1,
+      maxWidth: 100,
+    });
+  });
+
   it('mediaChromeFillsMotionShell stretches chrome when authored size is explicit', () => {
     expect(mediaChromeFillsMotionShell({ width: 120, height: 120 }, 'vertical')).toMatchObject({
       flex: 1,
@@ -116,7 +125,16 @@ describe('native styles parity', () => {
 
   it('stripFlowAxesForFlexChild removes width and height for stack children', () => {
     expect(
-      stripFlowAxesForFlexChild({ width: 'full', height: 'fill', padding: { t: 1, r: 1, b: 1, l: 1 } }, 'horizontal'),
+      stripFlowAxesForFlexChild(
+        {
+          width: 'full',
+          height: 'fill',
+          maxWidth: 100,
+          minHeight: 40,
+          padding: { t: 1, r: 1, b: 1, l: 1 },
+        },
+        'horizontal',
+      ),
     ).toEqual({ padding: { t: 1, r: 1, b: 1, l: 1 } });
   });
 
@@ -207,16 +225,40 @@ describe('native styles parity', () => {
     expect(merged.color).toBe('#ff00ff');
   });
 
-  it('mergeButtonInlineLabelStyle prefers button chrome color over text child (web parity)', () => {
+  it('mergeButtonInlineLabelStyle does not apply fontSize/weight/align defaults onto text children', () => {
+    const palette = buttonPalette('primary', 'dark');
+    const merged = mergeButtonInlineLabelStyle(palette, undefined, undefined, undefined, 'dark');
+    expect(merged.fontSize).toBeUndefined();
+    expect(merged.fontWeight).toBeUndefined();
+    expect(merged.textAlign).toBeUndefined();
+    expect(merged.color).toBe(palette.color);
+  });
+
+  it('mergeButtonInlineLabelStyle: text child fontSize 20 wins', () => {
     const palette = buttonPalette('primary', 'dark');
     const merged = mergeButtonInlineLabelStyle(
       palette,
-      { color: '#ffffff' },
-      { color: { light: '#ffffff', dark: '#000000' } },
+      { fontSize: 13, fontWeight: 600 },
+      { fontSize: 20 },
       undefined,
       'dark',
     );
-    expect(merged.color).toBe('#ffffff');
+    expect(merged.fontSize).toBe(20);
+    expect(merged.color).toBe(palette.color);
+  });
+
+  it('mergeButtonInlineLabelStyle prefers text-child typography over button chrome (web parity)', () => {
+    const palette = buttonPalette('primary', 'dark');
+    const merged = mergeButtonInlineLabelStyle(
+      palette,
+      { color: '#ffffff', fontSize: 13, fontWeight: 600 },
+      { color: { light: '#ffffff', dark: '#000000' }, fontSize: 24, fontWeight: 300 },
+      undefined,
+      'dark',
+    );
+    expect(merged.color).toBe('#000000');
+    expect(merged.fontSize).toBe(24);
+    expect(merged.fontWeight).toBe('300');
   });
 
   it('buttonChromeLayoutStyle hugs content height unless height fill is authored', () => {
@@ -300,6 +342,15 @@ describe('native styles parity', () => {
     expect(outerStyle.overflow).toBe('hidden');
   });
 
+  it('commonViewStylePair emits authored size clamps', () => {
+    expect(
+      commonViewStylePair({ maxWidth: 100, minHeight: 24 }, undefined, 'light').style,
+    ).toMatchObject({
+      maxWidth: 100,
+      minHeight: 24,
+    });
+  });
+
   it('commonViewStylePair exposes linearGradient for brand gradient (layer overflow clip pattern)', () => {
     const pair = commonViewStylePair(
       { background: brandGradientToken, radius: 12 },
@@ -323,5 +374,27 @@ describe('native styles parity', () => {
     expect(pair.linearGradient).not.toBeNull();
     // Layer shells apply overflow hidden when linearGradient is present.
     expect(pair.linearGradient ? 'hidden' : undefined).toBe('hidden');
+    // backgroundOpacity dims gradient stop colors (solid path parity).
+    expect(pair.linearGradient!.colors).toEqual(['rgba(255,0,0,0.8)', 'rgba(0,0,255,0.8)']);
+  });
+
+  it('commonViewStylePair applies background opacity without container opacity', () => {
+    const pair = commonViewStylePair(
+      { background: '#ff0000', backgroundOpacity: 0.5 },
+      undefined,
+      'light',
+    );
+    expect(pair.style.backgroundColor).toBe('rgba(255,0,0,0.5)');
+    expect(pair.style.opacity).toBeUndefined();
+  });
+
+  it('commonViewStylePair treats legacy background opacity as fill-only', () => {
+    const pair = commonViewStylePair(
+      { background: '#ff0000', opacity: 0.5 },
+      undefined,
+      'light',
+    );
+    expect(pair.style.backgroundColor).toBe('rgba(255,0,0,0.5)');
+    expect(pair.style.opacity).toBeUndefined();
   });
 });

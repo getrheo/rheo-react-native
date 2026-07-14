@@ -21,6 +21,32 @@ const expectSeedManifestHealthy = (m: FlowManifest): void => {
   expect(gates, gates.join('; ')).toEqual([]);
   const builder = collectFlowBuilderIssues(parsed.manifest);
   expect(builder, builder.join('; ')).toEqual([]);
+  expect(collectLegacyAuthoringConventionIssues(parsed.manifest)).toEqual([]);
+};
+
+/** Fail if seed manifests still emit hard-removed / aliased authoring shapes. */
+const collectLegacyAuthoringConventionIssues = (value: unknown, path = ''): string[] => {
+  const issues: string[] = [];
+  if (!value || typeof value !== 'object') return issues;
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => {
+      issues.push(...collectLegacyAuthoringConventionIssues(entry, `${path}[${index}]`));
+    });
+    return issues;
+  }
+  const record = value as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(record, 'justify')) {
+    issues.push(`${path || 'root'}: use "distribution" instead of legacy "justify"`);
+  }
+  if (record.width === 'fill') {
+    issues.push(`${path || 'root'}: width "fill" must be authored as "full"`);
+  }
+  for (const [key, child] of Object.entries(record)) {
+    issues.push(
+      ...collectLegacyAuthoringConventionIssues(child, path ? `${path}.${key}` : key),
+    );
+  }
+  return issues;
 };
 
 describe('dev seed manifests', () => {
