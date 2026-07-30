@@ -16,3 +16,11 @@ export type {
   VideoLayerViewProps,
   ScreenShellVideoBackdropProps,
 } from './videoAdapter.js';
+export {
+  registerFontAdapter,
+  getFontAdapter,
+  loadBrandingFonts,
+  __resetFontAdapterForTests,
+  __setFontAdapterForTests,
+} from './fontAdapter.js';
+export type { FontAdapter } from './fontAdapter.js';

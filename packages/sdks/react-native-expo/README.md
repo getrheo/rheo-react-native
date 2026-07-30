@@ -233,12 +233,14 @@ pnpm add @getrheo/react-native-expo@2.3.0 \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \
   react-native-vector-icons @react-native-async-storage/async-storage \
-  react-native-safe-area-context expo-store-review expo-video
+  react-native-safe-area-context expo-font expo-store-review expo-video
 ```
 
 **Integrations (not SDK peers):** install **`react-native-appsflyer`** and/or **`react-native-purchases`** + **`react-native-purchases-ui`** only when you use attribution or RevenueCat paywall steps.
 
-**Branding fonts:** use `buildBrandingFontLoadMap(branding)` from this package, then register faces with `expo-font` or linked assets.
+**Branding fonts:** Expo loads faces automatically after resolve via `expo-font`
+(`RheoFont__{styleId}` keys from `buildBrandingFontLoadMap`). Ensure `expo-font`
+is installed (peer of this package).
 
 ## Runnable example
 

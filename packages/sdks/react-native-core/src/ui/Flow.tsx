@@ -125,6 +125,11 @@ export const Flow = ({
             branding={branding ?? undefined}
             interactive
             interpolationContext={interpolationContext}
+            conditionalEval={{
+              platform: state.session.platform,
+              sdkAttributes: state.session.sdkAttributes,
+              responses: state.responses,
+            }}
             onRespond={respond}
             onAction={(a, meta) => {
               relayNativeButtonAction(a, meta);

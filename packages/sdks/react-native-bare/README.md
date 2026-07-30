@@ -23,6 +23,9 @@ Same API as the Expo flavor (`Flow`, `RheoProvider`, `useFlow`, …). See [`reac
 
 Cross-SDK integration map (RN subpaths vs SwiftUI): [`packages/sdks/docs/CROSS_SDK_INTEGRATION.md`](../docs/CROSS_SDK_INTEGRATION.md).
 
+**Branding fonts:** bare does not auto-download remote faces. Prefer bundling fonts or adding
+`expo-font` and registering with `buildBrandingFontLoadMap` keys (`RheoFont__{styleId}`).
+
 ## Example
 
 Runnable sample app: [getrheo/rheo-example-bare](https://github.com/getrheo/rheo-example-bare) (private monorepo copy: [`apps/example-bare`](../../../apps/example-bare)).

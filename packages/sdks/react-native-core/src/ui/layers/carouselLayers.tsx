@@ -11,6 +11,7 @@ import {
   rendererCarouselLayoutModel,
   rendererCarouselPageDotsModel,
   rendererCarouselScrollOffset,
+  rendererCarouselShouldCompleteOnAdvanceTap,
   rendererCarouselShouldEmitComplete,
   rendererCarouselSlideIndex,
   rendererCarouselSlideWidth,
@@ -22,6 +23,7 @@ import {
   resolveCommonStyleAtWidth,
 } from '@getrheo/flow-runtime';
 import { ChromeView, type Ctx, type RenderLayer } from '../LayerRendererShared';
+import { useCarouselControl } from '../carouselControl';
 import {
   borderStyle,
   commonViewStylePair,
@@ -117,16 +119,43 @@ export const CarouselView = ({
   const prevIdxRef = useRef(initialIdx);
   const slideWidth = rendererCarouselSlideWidth(containerWidth, layout.peek);
 
-  const maybeEmitComplete = (previousIndex: number, index: number) => {
-    if (
-      !ctx.interactive ||
-      !ctx.onRespond ||
-      !rendererCarouselShouldEmitComplete(previousIndex, index, layout.slideCount, layout.loop)
-    ) {
-      return;
-    }
+  const emitComplete = () => {
+    if (!ctx.interactive || !ctx.onRespond) return;
     ctx.onRespond({ kind: 'carousel' });
   };
+
+  const maybeEmitComplete = (previousIndex: number, index: number) => {
+    if (!rendererCarouselShouldEmitComplete(previousIndex, index, layout.slideCount, layout.loop)) {
+      return;
+    }
+    emitComplete();
+  };
+
+  // `advance_carousel` buttons page this carousel by layer id (mirrors media playback).
+  const carouselControl = useCarouselControl();
+  useEffect(() => {
+    if (!carouselControl) return;
+    return carouselControl.register(layer.id, {
+      advance: (onLast) => {
+        if (
+          rendererCarouselShouldCompleteOnAdvanceTap({
+            index: idx,
+            slideCount: layout.slideCount,
+            loop: layout.loop,
+            onLast,
+          })
+        ) {
+          emitComplete();
+          return;
+        }
+        const next = rendererCarouselAdvanceIndex(idx, layout.slideCount, layout.loop);
+        if (next === idx) return;
+        maybeEmitComplete(idx, next);
+        prevIdxRef.current = next;
+        setIdx(next);
+      },
+    });
+  }, [carouselControl, layer.id, idx, layout.slideCount, layout.loop, ctx.interactive, ctx.onRespond]);
 
   useEffect(() => {
     if (!layer.autoAdvance || !ctx.interactive) return;
