@@ -32,8 +32,10 @@ import {
 } from './styles';
 import { LayerMotionShell, MotionProvider } from './motion';
 import { MediaPlaybackProvider } from './mediaPlayback';
+import { CarouselControlProvider } from './carouselControl';
 import { BackButtonView, ButtonView } from './layers/actionLayers';
 import { CarouselView } from './layers/carouselLayers';
+import { ConditionalView } from './layers/conditionalLayers';
 import { MultipleChoiceView, SingleChoiceView } from './layers/choiceLayers';
 import { CounterView, LoaderView, ProgressView } from './layers/feedbackLayers';
 import { ChromeView, type Ctx } from './LayerRendererShared';
@@ -65,6 +67,15 @@ export type LayerRendererProps = {
   onHyperlinkOpened?: (meta: { layerId: string; href: string }) => void;
   /** App branding for `$brandGradient:` backgrounds when manifest references presets. */
   branding?: Branding;
+  /**
+   * Variables `conditional` layer cases read. `responses` defaults to
+   * {@link LayerRendererProps.interpolationContext}; `platform` to `unknown`.
+   */
+  conditionalEval?: {
+    platform?: string;
+    sdkAttributes?: Record<string, unknown>;
+    responses?: Record<string, unknown>;
+  };
 };
 
 // ---------------------------------------------------------------------------
@@ -125,6 +136,8 @@ const renderLayerInner = (layer: Layer, ctx: Ctx): ReactNode => {
       return <EmailPasswordAuthView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
     case 'carousel':
       return <CarouselView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
+    case 'conditional':
+      return <ConditionalView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
   }
 };
 
@@ -171,6 +184,7 @@ export const LayerRenderer = ({
   interpolationContext,
   onHyperlinkOpened,
   branding,
+  conditionalEval,
 }: LayerRendererProps) => {
   const { width: windowWidth, fontScale } = useWindowDimensions();
   const safeAreaInsets = useSafeAreaInsets();
@@ -188,6 +202,7 @@ export const LayerRenderer = ({
     previewWidthPx: windowWidth,
     branding,
     fontScale,
+    conditionalEval,
   };
   // Inputs lookup is only used to keep the screen-input draft in lockstep
   // with the rendered screen — useFlow already drives draft resets via
@@ -285,6 +300,7 @@ export const LayerRenderer = ({
       <ScreenInputDraftProvider screen={screen}>
         <MotionProvider screen={screen}>
         <MediaPlaybackProvider>
+        <CarouselControlProvider>
         <ChromeView style={shellStyle} linearGradient={null}>
           {shellFill ? (
             <View
@@ -299,6 +315,7 @@ export const LayerRenderer = ({
             {regions}
           </View>
         </ChromeView>
+        </CarouselControlProvider>
         </MediaPlaybackProvider>
         </MotionProvider>
       </ScreenInputDraftProvider>

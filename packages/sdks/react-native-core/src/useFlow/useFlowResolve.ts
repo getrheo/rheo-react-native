@@ -4,6 +4,7 @@ import { initFlowState, startFlow, type FlowState } from '@getrheo/flow-runtime'
 import type { SdkResolveResponse } from '@getrheo/contracts';
 import type { useRheo } from '../client.js';
 import { resolveManifest } from '../resolve/resolveManifest.js';
+import { loadBrandingFonts } from '../platform/fontAdapter.js';
 import type { EnqueueSdkFn } from './inputCaptureAnalytics.js';
 import { inferSdkPlatform } from './platform.js';
 import { logReceivedFlowManifest } from './logReceivedFlowManifest.js';
@@ -72,9 +73,11 @@ export const useFlowResolve = ({
         channelId: channelTrimmed,
         config,
       })
-        .then((data) => {
+        .then(async (data) => {
           if (isCancelled()) return;
           logReceivedFlowManifest(data);
+          await loadBrandingFonts(data.branding, data.mediaMap);
+          if (isCancelled()) return;
           flowEmitChannelRef.current = channelRef.current;
           setResolved(data);
           resolvedRef.current = data;
@@ -152,6 +155,11 @@ export const useFlowResolve = ({
       }
       if (!channelInvalid) {
         // Cache-only refresh; result is intentionally ignored (no hot-swap).
+        // Still register branding fonts from the warm seed so text can use them.
+        const seed = resolvedRef.current;
+        if (seed) {
+          void loadBrandingFonts(seed.branding, seed.mediaMap);
+        }
         resolveManifest({
           apiBaseUrl: config.apiBaseUrl ?? RHEO_DEFAULT_SDK_API_BASE_URL,
           publishableKey: config.publishableKey,

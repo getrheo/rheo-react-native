@@ -39,6 +39,14 @@ export type Ctx = {
   parentStackAlign?: 'start' | 'center' | 'end' | 'stretch';
   /** System Dynamic Type scale (`useWindowDimensions().fontScale`). */
   fontScale?: number;
+  /** Variables `conditional` cases read. `responses` falls back to {@link Ctx.interpolationContext}. */
+  conditionalEval?: {
+    platform?: string;
+    sdkAttributes?: Record<string, unknown>;
+    responses?: Record<string, unknown>;
+  };
+  /** Preview hosts: pin a `conditional` layer (by id) to a case id or `'else'`. */
+  conditionalCasePreview?: Record<string, string>;
 };
 
 export type RenderLayer = (layer: Layer, ctx: Ctx) => ReactNode;

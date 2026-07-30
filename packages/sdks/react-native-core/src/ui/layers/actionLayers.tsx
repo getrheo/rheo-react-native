@@ -33,6 +33,7 @@ import {
 } from '@getrheo/flow-ui-state';
 import { ChromeView, GradientUnderlay, type Ctx, type RenderLayer } from '../LayerRendererShared';
 import { useMediaPlayback } from '../mediaPlayback';
+import { useCarouselControl } from '../carouselControl';
 import {
   alignFor,
   buttonChromeLayoutStyle,
@@ -119,6 +120,7 @@ export const ButtonView = ({
     isGoBack && layer.action.kind === 'go_back_one_screen' ? layer.action.fallbackScreenId : undefined;
   const hasGoBackFallback = !!fallbackId;
   const mediaPlayback = useMediaPlayback();
+  const carouselControl = useCarouselControl();
   const isNone = layer.action.kind === 'none';
   const disabled =
     isNone ||
@@ -146,6 +148,10 @@ export const ButtonView = ({
     ctx.onAction?.(layer.action, { layerId: layer.id });
     if (layer.action.kind === 'play_media') {
       mediaPlayback?.playMedia(layer.action.targetLayerIds);
+      return;
+    }
+    if (layer.action.kind === 'advance_carousel') {
+      carouselControl?.advanceCarousel(layer.action.targetLayerId, layer.action.onLast);
       return;
     }
     if (layer.action.kind === 'none') return;
