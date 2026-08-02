@@ -1,14 +1,18 @@
 import { useEffect, useRef, type MutableRefObject } from 'react';
 import { findExternalSurface, type FlowState } from '@getrheo/flow-runtime';
 import type { SdkResolveResponse } from '@getrheo/contracts';
+import { resolveExternalSurfaceHostKey } from '@getrheo/contracts';
 import type { StepResponse } from '@getrheo/flow-runtime';
 import type { ExternalSurfacePresenter } from './types.js';
+import type { ExternalSurfacesMap } from '../externalSurfaces/headless.js';
 import type { EnqueueSdkFn } from './inputCaptureAnalytics.js';
 
 export type UseFlowExternalSurfacesParams = {
   resolved: SdkResolveResponse | null;
   state: FlowState | null;
   presenterRef: MutableRefObject<ExternalSurfacePresenter>;
+  /** Host component registry; when set, headless surfaces skip the promise presenter. */
+  externalSurfacesRef: MutableRefObject<ExternalSurfacesMap | undefined>;
   respondRef: MutableRefObject<(r: StepResponse) => void>;
   enqueueSdk: EnqueueSdkFn;
 };
@@ -17,6 +21,7 @@ export const useFlowExternalSurfaces = ({
   resolved,
   state,
   presenterRef,
+  externalSurfacesRef,
   respondRef,
   enqueueSdk,
 }: UseFlowExternalSurfacesParams): void => {
@@ -49,6 +54,35 @@ export const useFlowExternalSurfaces = ({
           : {}),
       },
     });
+
+    // Headless: host component is rendered by `Flow`. If the host omitted a
+    // registry entry, fail immediately so the flow can use Fallback.
+    if (node.config.provider === 'headless') {
+      const hostKey = resolveExternalSurfaceHostKey(node);
+      const host = externalSurfacesRef.current?.[hostKey];
+      if (!host) {
+        enqueueSdk({
+          name: 'surface_outcome',
+          flowId: resolved.flowId,
+          versionId: resolved.versionId,
+          experimentId: resolved.experimentId,
+          variantId: resolved.variantId,
+          stepId: pending.nodeId,
+          properties: {
+            surface_node_id: pending.nodeId,
+            provider: node.config.provider,
+            outcome: 'failed',
+          },
+        });
+        respondRef.current({
+          kind: 'external_surface_outcome',
+          nodeId: pending.nodeId,
+          outcome: 'failed',
+          sdkKeyPatch: { onb_surface_last_event: 'failed' },
+        });
+      }
+      return;
+    }
 
     let cancelled = false;
     void presenterRef
@@ -139,5 +173,5 @@ export const useFlowExternalSurfaces = ({
     return () => {
       cancelled = true;
     };
-  }, [resolved, state, enqueueSdk, presenterRef, respondRef]);
+  }, [resolved, state, enqueueSdk, presenterRef, externalSurfacesRef, respondRef]);
 };

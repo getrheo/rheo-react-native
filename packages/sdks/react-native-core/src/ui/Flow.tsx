@@ -7,16 +7,23 @@ import {
 } from '../emailPasswordAuth';
 import { OAuthLoginProvider, useOAuthLogin, type OAuthLoginHandlerPayload } from '../oauthLogin';
 import type { FlowTerminalSnapshot } from '@getrheo/contracts';
+import { resolveExternalSurfaceHostKey } from '@getrheo/contracts';
 import { ActivityIndicator, View } from 'react-native';
 import { LayerRenderer } from './LayerRenderer';
 import { ScreenChrome } from './Screen';
 import { DefaultResolveError } from './DefaultResolveError';
+import type { ExternalSurfacesMap } from '../externalSurfaces/headless.js';
 
 export type FlowProps = {
   channelId: string;
   theme?: 'light' | 'dark';
   /** Host-owned escape hatch when manifest resolve fails (full-bleed; no Rheo telemetry). */
   fallback?: ReactNode;
+  /**
+   * Host components keyed by `config.hostKey` (or node id when hostKey is unset).
+   * Used when the flow lands on a `provider: 'headless'` surface.
+   */
+  externalSurfaces?: ExternalSurfacesMap;
   onFlowCompleted?: (payload: FlowTerminalSnapshot) => void;
   onFlowAbandoned?: (payload: FlowTerminalSnapshot) => void;
   includeManifestInTerminalPayload?: boolean;
@@ -61,6 +68,7 @@ export const Flow = ({
   channelId,
   theme = 'light',
   fallback = null,
+  externalSurfaces,
   onFlowCompleted,
   onFlowAbandoned,
   includeManifestInTerminalPayload,
@@ -79,13 +87,16 @@ export const Flow = ({
     manifest,
     state,
     respond,
+    reportExternalSurfaceOutcome,
     interpolationContext,
     relayNativeButtonAction,
     trackExternalLinkOpened,
     branding,
     mediaMap,
+    pendingExternalSurface,
   } = useFlow({
     channelId,
+    externalSurfaces,
     includeManifestInTerminalPayload,
     includePathInTerminalPayload,
     includeAnswerDetailInTerminalPayload,
@@ -106,6 +117,42 @@ export const Flow = ({
       return <>{fallback}</>;
     }
     return <DefaultResolveError theme={theme} onRetry={retry} />;
+  }
+
+  if (
+    pendingExternalSurface &&
+    pendingExternalSurface.config.provider === 'headless' &&
+    state?.status === 'running'
+  ) {
+    const hostKey = resolveExternalSurfaceHostKey(pendingExternalSurface);
+    const Host = externalSurfaces?.[hostKey];
+    if (!Host) {
+      // Missing registry entry is handled by useFlowExternalSurfaces (failed).
+      return null;
+    }
+    return (
+      <ScreenChrome theme={theme} withGestureRoot={withGestureRoot}>
+        <Host
+          surfaceId={hostKey}
+          node={pendingExternalSurface}
+          onComplete={() =>
+            reportExternalSurfaceOutcome(pendingExternalSurface.id, 'completed', {
+              provider: 'headless',
+            })
+          }
+          onBack={() =>
+            reportExternalSurfaceOutcome(pendingExternalSurface.id, 'back', {
+              provider: 'headless',
+            })
+          }
+          onDismiss={() =>
+            reportExternalSurfaceOutcome(pendingExternalSurface.id, 'dismissed', {
+              provider: 'headless',
+            })
+          }
+        />
+      </ScreenChrome>
+    );
   }
 
   if (!manifest || !screen || !state || state.status !== 'running') {

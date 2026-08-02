@@ -103,17 +103,22 @@ type Harness = { current: UseFlowResult | null };
 const HarnessComponent = ({
   harness,
   presenter,
+  externalSurfaces,
   onFlowCompleted,
   onFlowAbandoned,
+  channelId = 'ch_test_xyz',
 }: {
   harness: Harness;
   presenter?: ExternalSurfacePresenter;
+  externalSurfaces?: import('./useFlow/types.js').ExternalSurfacesMap;
   onFlowCompleted?: (payload: FlowTerminalSnapshot) => void;
   onFlowAbandoned?: (payload: FlowTerminalSnapshot) => void;
+  channelId?: string;
 }) => {
   const result = useFlow({
-    channelId: 'ch_test_xyz',
+    channelId,
     externalSurfacePresenter: presenter,
+    externalSurfaces,
     onFlowCompleted,
     onFlowAbandoned,
   });
@@ -367,6 +372,211 @@ describe('useFlow external surface integration', () => {
     let tree: ReactTestRenderer | undefined;
     await act(async () => {
       tree = renderHarness(harness, presenter);
+    });
+    await flush();
+
+    await act(async () => {
+      harness.current?.respond({ kind: 'cta', action: 'primary' });
+    });
+    await flush();
+    await flush();
+    expect(harness.current?.screen?.id).toBe('scr_done');
+
+    tree?.unmount();
+  });
+
+  it('does not invoke the promise presenter for headless surfaces and advances via reportExternalSurfaceOutcome', async () => {
+    const headlessManifest: FlowManifest = {
+      ...manifest,
+      externalSurfaceNodes: [
+        {
+          id: 'surf_custom',
+          config: { provider: 'headless' },
+          outcomes: { completed: 'scr_done', back: 'scr_welcome', dismissed: 'scr_done' },
+          fallback: 'scr_done',
+        },
+      ],
+      screens: manifest.screens.map((s) =>
+        s.id === 'scr_welcome' ? { ...s, next: { default: 'surf_custom' } } : s,
+      ),
+    };
+    const headlessResolve: SdkResolveResponse = {
+      ...resolveResponse,
+      manifest: headlessManifest,
+    };
+    const presenter: ExternalSurfacePresenter = vi.fn(
+      async (): Promise<RevenueCatPresentResult> => ({
+        outcome: 'failed',
+        sdkKeyPatch: {},
+      }),
+    );
+    const harness: Harness = { current: null };
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify(headlessResolve), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ) as unknown as typeof fetch;
+
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(
+          RheoProvider,
+          {
+            config: {
+              publishableKey: 'ob_pk_test_abc',
+              apiBaseUrl: 'https://api.test',
+              fetcher: fetchMock,
+            },
+            children: createElement(HarnessComponent, {
+              harness,
+              presenter,
+              externalSurfaces: {
+                surf_custom: () => null,
+              },
+            }) as ReactNode,
+          },
+        ),
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      harness.current?.respond({ kind: 'cta', action: 'primary' });
+    });
+    await flush();
+    expect(harness.current?.pendingExternalSurface?.id).toBe('surf_custom');
+    expect(presenter).not.toHaveBeenCalled();
+
+    await act(async () => {
+      harness.current?.reportExternalSurfaceOutcome('surf_custom', 'completed', {
+        provider: 'headless',
+      });
+    });
+    await flush();
+    expect(harness.current?.screen?.id).toBe('scr_done');
+
+    tree?.unmount();
+  });
+
+  it('looks up headless host components by config.hostKey when set', async () => {
+    const headlessManifest: FlowManifest = {
+      ...manifest,
+      externalSurfaceNodes: [
+        {
+          id: 'surf_custom',
+          config: { provider: 'headless', hostKey: 'onboardingQuiz' },
+          outcomes: { completed: 'scr_done' },
+          fallback: 'scr_done',
+        },
+      ],
+      screens: manifest.screens.map((s) =>
+        s.id === 'scr_welcome' ? { ...s, next: { default: 'surf_custom' } } : s,
+      ),
+    };
+    const headlessResolve: SdkResolveResponse = {
+      ...resolveResponse,
+      manifest: headlessManifest,
+    };
+    const presenter: ExternalSurfacePresenter = vi.fn(
+      async (): Promise<RevenueCatPresentResult> => ({
+        outcome: 'failed',
+        sdkKeyPatch: {},
+      }),
+    );
+    const harness: Harness = { current: null };
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify(headlessResolve), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ) as unknown as typeof fetch;
+
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(
+          RheoProvider,
+          {
+            config: {
+              publishableKey: 'ob_pk_test_abc',
+              apiBaseUrl: 'https://api.test',
+              fetcher: fetchMock,
+            },
+            children: createElement(HarnessComponent, {
+              harness,
+              presenter,
+              externalSurfaces: {
+                onboardingQuiz: () => null,
+              },
+            }) as ReactNode,
+          },
+        ),
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      harness.current?.respond({ kind: 'cta', action: 'primary' });
+    });
+    await flush();
+    expect(harness.current?.pendingExternalSurface?.id).toBe('surf_custom');
+    expect(presenter).not.toHaveBeenCalled();
+
+    await act(async () => {
+      harness.current?.reportExternalSurfaceOutcome('surf_custom', 'completed', {
+        provider: 'headless',
+      });
+    });
+    await flush();
+    expect(harness.current?.screen?.id).toBe('scr_done');
+
+    tree?.unmount();
+  });
+
+  it('fails a headless surface when no host component is registered', async () => {
+    const headlessManifest: FlowManifest = {
+      ...manifest,
+      externalSurfaceNodes: [
+        {
+          id: 'surf_custom',
+          config: { provider: 'headless' },
+          outcomes: { completed: 'scr_done' },
+          fallback: 'scr_done',
+        },
+      ],
+      screens: manifest.screens.map((s) =>
+        s.id === 'scr_welcome' ? { ...s, next: { default: 'surf_custom' } } : s,
+      ),
+    };
+    const headlessResolve: SdkResolveResponse = {
+      ...resolveResponse,
+      manifest: headlessManifest,
+    };
+    const harness: Harness = { current: null };
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify(headlessResolve), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    ) as unknown as typeof fetch;
+
+    let tree: ReactTestRenderer | undefined;
+    await act(async () => {
+      tree = TestRenderer.create(
+        createElement(
+          RheoProvider,
+          {
+            config: {
+              publishableKey: 'ob_pk_test_abc',
+              apiBaseUrl: 'https://api.test',
+              fetcher: fetchMock,
+            },
+            children: createElement(HarnessComponent, { harness }) as ReactNode,
+          },
+        ),
+      );
     });
     await flush();
 

@@ -7,3 +7,4 @@ export {
   __setRevenueCatPurchasesModuleForTests,
 } from './revenueCat';
 export type {RevenueCatPresentResult, RevenueCatPurchaseCommerce} from './revenueCat';
+export type { ExternalSurfaceHostProps, ExternalSurfacesMap, HeadlessSurfaceOutcome } from './headless';

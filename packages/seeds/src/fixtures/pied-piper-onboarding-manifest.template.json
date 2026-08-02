@@ -1129,7 +1129,7 @@
   "externalSurfaceNodes": [
     {
       "id": "surf_mr8mi319gnme",
-      "name": "External integration",
+      "name": "Integration",
       "config": {
         "provider": "revenuecat",
         "offeringId": "default"

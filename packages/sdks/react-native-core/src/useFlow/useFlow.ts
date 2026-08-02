@@ -1,10 +1,16 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { findScreen, type FlowState, type InterpolationContext } from '@getrheo/flow-runtime';
-import type { SdkResolveResponse } from '@getrheo/contracts';
+import type { NormalizedSurfaceOutcome, SdkResolveResponse } from '@getrheo/contracts';
 import { useEventQueue, useRheo } from '../client.js';
 import type { UseFlowOptions, UseFlowResult, ExternalSurfacePresenter } from './types.js';
 import { defaultExternalSurfacePresenter } from './types.js';
-export type { UseFlowResult, UseFlowOptions, ExternalSurfacePresenter } from './types.js';
+export type {
+  UseFlowResult,
+  UseFlowOptions,
+  ExternalSurfacePresenter,
+  ExternalSurfaceHostProps,
+  ExternalSurfacesMap,
+} from './types.js';
 import { useFlowTelemetry } from './useFlowTelemetry.js';
 import { useFlowResolve } from './useFlowResolve.js';
 import { useFlowTerminal } from './useFlowTerminal.js';
@@ -24,6 +30,7 @@ const emptyMediaMap: Record<string, string> = {};
 export const useFlow = ({
   channelId,
   externalSurfacePresenter,
+  externalSurfaces,
   includeManifestInTerminalPayload,
   includePathInTerminalPayload,
   includeAnswerDetailInTerminalPayload,
@@ -37,6 +44,8 @@ export const useFlow = ({
     externalSurfacePresenter ?? defaultExternalSurfacePresenter,
   );
   presenterRef.current = externalSurfacePresenter ?? defaultExternalSurfacePresenter;
+  const externalSurfacesRef = useRef(externalSurfaces);
+  externalSurfacesRef.current = externalSurfaces;
   const channelInvalid = channelTrimmed.length === 0;
 
   const channelRef = useRef(channelTrimmed);
@@ -185,6 +194,7 @@ export const useFlow = ({
     resolved,
     state,
     presenterRef,
+    externalSurfacesRef,
     respondRef,
     enqueueSdk,
   });
@@ -200,6 +210,38 @@ export const useFlow = ({
       state,
       setState,
     });
+
+  const reportExternalSurfaceOutcome = useCallback(
+    (
+      nodeId: string,
+      outcome: NormalizedSurfaceOutcome,
+      opts?: { provider?: string },
+    ) => {
+      const data = resolvedRef.current;
+      if (data) {
+        enqueueSdk({
+          name: 'surface_outcome',
+          flowId: data.flowId,
+          versionId: data.versionId,
+          experimentId: data.experimentId,
+          variantId: data.variantId,
+          stepId: nodeId,
+          properties: {
+            surface_node_id: nodeId,
+            provider: opts?.provider ?? 'headless',
+            outcome,
+          },
+        });
+      }
+      respond({
+        kind: 'external_surface_outcome',
+        nodeId,
+        outcome,
+        sdkKeyPatch: { onb_surface_last_event: outcome },
+      });
+    },
+    [enqueueSdk, respond],
+  );
 
   const resolveFailed = !loading && error != null && resolved == null;
 
@@ -218,6 +260,7 @@ export const useFlow = ({
     branding: resolved?.branding ?? null,
     mediaMap: resolved?.mediaMap ?? emptyMediaMap,
     respond,
+    reportExternalSurfaceOutcome,
     interpolationContext,
     relayNativeButtonAction,
     trackExternalLinkOpened,
