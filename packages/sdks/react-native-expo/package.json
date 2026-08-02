@@ -1,6 +1,6 @@
 {
   "name": "@getrheo/react-native-expo",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -15,7 +15,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@getrheo/react-native-core": "2.4.0"
+    "@getrheo/react-native-core": "2.5.0"
   },
   "peerDependencies": {
     "@react-native-async-storage/async-storage": ">=2",
@@ -34,9 +34,9 @@
     "react-native-vector-icons": ">=10"
   },
   "devDependencies": {
-    "@getrheo/contracts": "2.4.0",
-    "@getrheo/flow-runtime": "2.4.0",
-    "@getrheo/react-native-core": "2.4.0",
+    "@getrheo/contracts": "2.5.0",
+    "@getrheo/flow-runtime": "2.5.0",
+    "@getrheo/react-native-core": "2.5.0",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@rheo/config": "workspace:*",
     "@types/react": "^19.0.1",

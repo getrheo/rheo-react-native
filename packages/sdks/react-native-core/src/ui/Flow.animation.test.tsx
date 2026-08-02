@@ -123,6 +123,7 @@ const makeFlowResult = (screen: Screen): UseFlowResult => {
   branding: null,
   mediaMap: { 'asset-hero': 'https://cdn.test/hero.png' },
   respond: vi.fn(),
+  reportExternalSurfaceOutcome: vi.fn(),
   interpolationContext: { responses: {}, customProperties: {}, canGoBack: false },
   relayNativeButtonAction: vi.fn(),
   trackExternalLinkOpened: vi.fn(),

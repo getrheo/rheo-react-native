@@ -26,7 +26,13 @@ export type {
 } from './resolve/manifestResolveCache.js';
 export { useFlow } from './useFlow';
 export { buildBrandingFontLoadMap } from '@getrheo/renderer-core';
-export type {UseFlowOptions, UseFlowResult, ExternalSurfacePresenter, } from './useFlow';
+export type {
+  UseFlowOptions,
+  UseFlowResult,
+  ExternalSurfacePresenter,
+  ExternalSurfaceHostProps,
+  ExternalSurfacesMap,
+} from './useFlow';
 export type {FlowTerminalSnapshot, SdkResolveAssignment, FlowTerminalCorrelation, FlowTerminalDevice, } from '@getrheo/contracts/sdk';
 export type { FlowTerminalAnswerMap, FlowTerminalAnswerEntryValue } from '@getrheo/flow-runtime';
 export {
@@ -45,6 +51,7 @@ export type {
   RevenueCatPresentResult,
   RevenueCatPurchaseCommerce,
 } from './externalSurfaces/revenueCat';
+export type { HeadlessSurfaceOutcome } from './externalSurfaces/headless';
 export {
   OAuthLoginProvider,
   useOAuthLogin,
