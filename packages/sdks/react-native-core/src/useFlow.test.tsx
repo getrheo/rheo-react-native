@@ -86,6 +86,7 @@ const resolveResponse: SdkResolveResponse = {
   features: { attribution: true },
   integrations: {
     revenuecat: { enabled: false, defaultOfferingId: '', defaultPlacementId: '' },
+    superwall: { enabled: false, defaultPlacementId: '' },
     appsflyer: { enabled: true },
   },
 };
@@ -663,6 +664,7 @@ const linearResolve: SdkResolveResponse = {
   features: { attribution: false },
   integrations: {
     revenuecat: { enabled: false, defaultOfferingId: '', defaultPlacementId: '' },
+    superwall: { enabled: false, defaultPlacementId: '' },
     appsflyer: { enabled: false },
   },
 };

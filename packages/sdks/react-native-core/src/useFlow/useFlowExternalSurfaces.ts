@@ -52,6 +52,9 @@ export const useFlowExternalSurfaces = ({
         ...(node.config.provider === 'revenuecat' && node.config.offeringId
           ? { offering_id: node.config.offeringId }
           : {}),
+        ...(node.config.provider === 'superwall' && node.config.placementId
+          ? { placement_id: node.config.placementId }
+          : {}),
       },
     });
 
@@ -107,7 +110,8 @@ export const useFlowExternalSurfaces = ({
           const productId = commerce?.product_id;
           const offeringId =
             commerce?.offering_id ??
-            (node.config.provider === 'revenuecat' ? node.config.offeringId : undefined);
+            (node.config.provider === 'revenuecat' ? node.config.offeringId : undefined) ??
+            (node.config.provider === 'superwall' ? node.config.placementId : undefined);
           if (productId) {
             const properties: Record<string, string | number> = {
               provider: node.config.provider,

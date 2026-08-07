@@ -8,9 +8,11 @@ import type {
   NormalizedSurfaceOutcome,
   Screen,
 } from '@getrheo/contracts';
-import type { FlowState, InterpolationContext, StepResponse } from '@getrheo/flow-runtime';
-import type { RevenueCatPresentResult } from '../externalSurfaces/revenueCat.js';
+import type { FlowState, InterpolationContext, StepResponse, SurfaceSdkKeyPatch } from '@getrheo/flow-runtime';
+import type { RevenueCatPurchaseCommerce } from '../externalSurfaces/revenueCat.js';
 import { presentRevenueCatPaywall } from '../externalSurfaces/revenueCat.js';
+import type { SuperwallPurchaseCommerce } from '../externalSurfaces/superwall.js';
+import { presentSuperwallPaywall } from '../externalSurfaces/superwall.js';
 import type {
   ExternalSurfaceHostProps,
   ExternalSurfacesMap,
@@ -55,9 +57,15 @@ export type UseFlowResult = {
   abandon: () => void;
 };
 
+export type ExternalSurfacePresentResult = {
+  outcome: NormalizedSurfaceOutcome;
+  sdkKeyPatch?: SurfaceSdkKeyPatch;
+  commerce?: RevenueCatPurchaseCommerce | SuperwallPurchaseCommerce;
+};
+
 export type ExternalSurfacePresenter = (
   node: ExternalSurfaceNode,
-) => Promise<RevenueCatPresentResult>;
+) => Promise<ExternalSurfacePresentResult>;
 
 export type UseFlowOptions = {
   channelId: string;
@@ -79,6 +87,9 @@ export type HeadlessSurfaceComponent = ComponentType<ExternalSurfaceHostProps>;
 export const defaultExternalSurfacePresenter: ExternalSurfacePresenter = (node) => {
   if (node.config.provider === 'revenuecat') {
     return presentRevenueCatPaywall(node.config);
+  }
+  if (node.config.provider === 'superwall') {
+    return presentSuperwallPaywall(node.config);
   }
   if (node.config.provider === 'headless') {
     // Headless surfaces are rendered by `Flow` / the host via `externalSurfaces`.
