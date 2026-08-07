@@ -5,7 +5,7 @@ Bare React Native entry for the Rheo SDK. Re-exports `@getrheo/react-native-core
 ## Install
 
 ```bash
-pnpm add @getrheo/react-native-bare@2.5.0 \
+pnpm add @getrheo/react-native-bare@2.6.0 \
   react react-native \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \
@@ -15,7 +15,7 @@ pnpm add @getrheo/react-native-bare@2.5.0 \
 
 Complete native setup for permissions (Info.plist / AndroidManifest) per [react-native-permissions](https://github.com/zoontek/react-native-permissions).
 
-**Integrations (not SDK peers):** `react-native-appsflyer`, `react-native-purchases`, `react-native-purchases-ui` — install only when used.
+**Integrations (not SDK peers):** `react-native-appsflyer`, `react-native-purchases`, `react-native-purchases-ui`, `@superwall/react-native-superwall` — install only when used.
 
 ## Usage
 

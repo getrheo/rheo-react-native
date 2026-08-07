@@ -1,11 +1,11 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import {
   Pressable,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import type { ViewStyle } from 'react-native';
+import type { TextInputProps, ViewStyle } from 'react-native';
 import Slider from '@react-native-community/slider';
 import type { CheckboxLayer, ScaleInputLayer, TextInputLayer } from '@getrheo/contracts';
 import { resolveLocalizedText } from '@getrheo/contracts';
@@ -17,7 +17,14 @@ import {
   stripTextInputFieldChromeFromStyle,
   textInputDefaultChromeColors,
 } from '@getrheo/flow-runtime/textInputStyle';
-import { resolveCheckboxGlyphForRender, scaleAuthoredFontSize } from '@getrheo/renderer-core';
+import {
+  resolveCheckboxGlyphForRender,
+  rendererFormErrorChrome,
+  rendererTextInputKeyboardModel,
+  rendererTextInputModel,
+  rendererTextInputShouldShowError,
+  scaleAuthoredFontSize,
+} from '@getrheo/renderer-core';
 import { useScreenCheckboxAck } from '@getrheo/flow-ui-state';
 import { useScreenInputDraft } from '@getrheo/flow-ui-state/draft';
 import { ChromeView, type Ctx, type RenderLayer } from '../LayerRendererShared';
@@ -118,22 +125,23 @@ export const TextInputView = ({
   renderLayer: RenderLayer;
 }) => {
   const draftCtx = useScreenInputDraft();
+  const [touched, setTouched] = useState(false);
   const value = draftCtx?.draft?.kind === 'text' ? draftCtx.draft.value : '';
   const placeholder = layer.placeholder
     ? resolveLocalizedText(layer.placeholder, ctx.locale)
     : '';
+  const helperText = layer.helperText
+    ? resolveLocalizedText(layer.helperText, ctx.locale)
+    : '';
+  const keyboard = rendererTextInputKeyboardModel(layer);
+  const model = rendererTextInputModel(layer, value);
+  const showError = rendererTextInputShouldShowError(model, {
+    touched,
+    submitAttempted: false,
+  });
+  const errorChrome = rendererFormErrorChrome(ctx.theme);
   const mode = layer.inputType ?? 'plain';
-  const multiline = mode === 'multiline';
-  const keyboardType =
-    mode === 'email'
-      ? 'email-address'
-      : mode === 'phone'
-        ? 'phone-pad'
-        : mode === 'url'
-          ? 'url'
-          : mode === 'number'
-            ? 'number-pad'
-            : 'default';
+  const multiline = keyboard.multiline;
   const childCtx: Ctx = { ...ctx, isRegionRoot: false, regionKind: undefined };
   const w = ctx.previewWidthPx ?? DEFAULT_PREVIEW_VIEWPORT_WIDTH_PX;
   const resolvedOuter = resolveCommonStyleAtWidth(layer.style, layer.styleBreakpoints, w);
@@ -150,7 +158,10 @@ export const TextInputView = ({
   );
   const fieldChrome = resolveTextInputFieldChromeStyle(resolvedOuter, ctx.theme);
   const fieldPair = commonViewStylePair(
-    fieldChrome,
+    {
+      ...fieldChrome,
+      ...(showError ? { border: { ...(fieldChrome?.border ?? {}), color: errorChrome.fieldBorderColor } } : {}),
+    },
     ctx.manifest.theme,
     ctx.theme,
     ctx.branding,
@@ -178,6 +189,11 @@ export const TextInputView = ({
       field.letterSpacing !== undefined ? field.letterSpacing * fieldFontSize : undefined,
   };
   const placeholderColor = textInputDefaultChromeColors(ctx.theme).placeholder;
+  const rnTextContentType =
+    keyboard.textContentType === 'none'
+      ? undefined
+      : (keyboard.textContentType as TextInputProps['textContentType']);
+  const statusCopy = showError ? model.invalidReason : helperText || undefined;
   return (
     <View
       style={{
@@ -197,9 +213,18 @@ export const TextInputView = ({
           maxLength={layer.maxLength}
           value={value}
           multiline={multiline}
-          keyboardType={keyboardType}
-          autoCapitalize={mode === 'email' ? 'none' : 'sentences'}
-          secureTextEntry={layer.classification === 'sensitive' && !multiline}
+          keyboardType={keyboard.keyboardType}
+          autoCapitalize={keyboard.autoCapitalize}
+          autoCorrect={keyboard.autoCorrect}
+          returnKeyType={keyboard.returnKeyType === 'default' ? 'done' : keyboard.returnKeyType}
+          textContentType={rnTextContentType}
+          autoComplete={
+            keyboard.autoComplete as TextInputProps['autoComplete'] | undefined
+          }
+          secureTextEntry={keyboard.secureTextEntry}
+          onBlur={() => {
+            if (ctx.interactive) setTouched(true);
+          }}
           onChangeText={(next) => {
             const value = mode === 'number' ? filterDigitsOnlyInput(next) : next;
             draftCtx?.setDraft(value === '' ? null : { kind: 'text', value });
@@ -215,6 +240,22 @@ export const TextInputView = ({
           }}
         />
       </ChromeView>
+      {statusCopy ? (
+        <Text
+          accessibilityRole={showError ? 'alert' : undefined}
+          style={{
+            fontSize: 12,
+            lineHeight: 16,
+            color: showError
+              ? errorChrome.textColor
+              : ctx.theme === 'dark'
+                ? '#a1a1aa'
+                : '#71717a',
+          }}
+        >
+          {statusCopy}
+        </Text>
+      ) : null}
     </View>
   );
 };

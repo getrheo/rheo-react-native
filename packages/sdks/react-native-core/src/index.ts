@@ -51,6 +51,15 @@ export type {
   RevenueCatPresentResult,
   RevenueCatPurchaseCommerce,
 } from './externalSurfaces/revenueCat';
+export {
+  presentSuperwallPaywall,
+  normalizeSuperwallResult,
+  SuperwallModuleMissingError,
+} from './externalSurfaces/superwall';
+export type {
+  SuperwallPresentResult,
+  SuperwallPurchaseCommerce,
+} from './externalSurfaces/superwall';
 export type { HeadlessSurfaceOutcome } from './externalSurfaces/headless';
 export {
   OAuthLoginProvider,

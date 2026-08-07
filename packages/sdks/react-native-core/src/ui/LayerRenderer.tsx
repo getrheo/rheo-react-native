@@ -42,6 +42,7 @@ import { ChromeView, type Ctx } from './LayerRendererShared';
 import { HyperlinkView, StackView, TextView } from './layers/layoutLayers';
 import { IconView, ImageView, LottieLayerView, VideoLayerView } from './layers/mediaLayers';
 import { CheckboxView, ScaleInputView, TextInputView } from './layers/inputLayers';
+import { AddressInputView, DateTimeInputView, NumberStepperView, PhoneInputView } from './layers/formPatternLayers';
 import { WheelPickerView } from './layers/wheelPickerLayers';
 import { EmailPasswordAuthView, OAuthLoginView } from './layers/authLayers';
 import { ScreenShellBackdrop } from './screenBackground';
@@ -125,6 +126,17 @@ const renderLayerInner = (layer: Layer, ctx: Ctx): ReactNode => {
       return <ScaleInputView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
     case 'wheel_picker':
       return <WheelPickerView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
+    case 'date_time_input':
+      return <DateTimeInputView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
+    case 'number_stepper':
+      return <NumberStepperView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
+    case 'number_stepper_button':
+    case 'number_stepper_value':
+      return null;
+    case 'phone_input':
+      return <PhoneInputView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
+    case 'address_input':
+      return <AddressInputView layer={layer} ctx={ctx} renderLayer={renderLayer} />;
     case 'oauth_provider':
       return <View />;
     case 'oauth_login':

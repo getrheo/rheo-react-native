@@ -29,6 +29,10 @@ vi.mock('@react-native-community/slider', () => ({
   default: (props: Record<string, unknown>) => createElement('Slider', props),
 }));
 
+vi.mock('@react-native-community/datetimepicker', () => ({
+  default: (props: Record<string, unknown>) => createElement('DateTimePicker', props),
+}));
+
 vi.mock('@getrheo/flow-ui-state', () => ({
   useScreenCheckboxAck: () => ({
     checked: {},

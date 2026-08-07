@@ -31,4 +31,6 @@ export const SEED_WELCOME_FLOW_NAME = SEED_TEMPLATE_FLOW_NAMES.language_learning
 export const SEED_STRESS_HARNESS_FLOW_NAME = SEED_TEMPLATE_FLOW_NAMES.fitness;
 export const SEED_ANIMATION_LAB_FLOW_NAME = 'Seed · Animation stress harness';
 export const SEED_AUTH_CANVAS_FLOW_NAME = 'Seed · Auth canvas';
+export const SEED_PAYWALL_INTEGRATIONS_FLOW_NAME = 'Seed · Paywall integrations';
+export const SEED_SDK_REGRESSION_GOLD_FLOW_NAME = 'Seed · SDK regression gold';
 export const SEED_PAYWALL_FLOW_NAME = SEED_TEMPLATE_FLOW_NAMES.win_back;

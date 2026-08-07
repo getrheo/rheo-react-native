@@ -225,10 +225,10 @@ Requesting authorization is separate from registering for remote push tokens; to
 
 ## Required peer dependencies (install with the SDK)
 
-One install — all peers are **required** for the Expo flavor (no optional meta). **`@react-native-community/slider`** ships as a direct dependency of core.
+One install — all peers are **required** for the Expo flavor (no optional meta). **`@react-native-community/slider`** and **`@react-native-community/datetimepicker`** ship as direct dependencies of core.
 
 ```bash
-pnpm add @getrheo/react-native-expo@2.5.0 \
+pnpm add @getrheo/react-native-expo@2.6.0 \
   react react-native \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \
@@ -236,7 +236,7 @@ pnpm add @getrheo/react-native-expo@2.5.0 \
   react-native-safe-area-context expo-font expo-store-review expo-video
 ```
 
-**Integrations (not SDK peers):** install **`react-native-appsflyer`** and/or **`react-native-purchases`** + **`react-native-purchases-ui`** only when you use attribution or RevenueCat paywall steps.
+**Integrations (not SDK peers):** install **`react-native-appsflyer`**, **`react-native-purchases`** + **`react-native-purchases-ui`**, and/or **`expo-superwall`** / **`@superwall/react-native-superwall`** only when you use attribution, RevenueCat, or Superwall paywall steps.
 
 **Branding fonts:** Expo loads faces automatically after resolve via `expo-font`
 (`RheoFont__{styleId}` keys from `buildBrandingFontLoadMap`). Ensure `expo-font`

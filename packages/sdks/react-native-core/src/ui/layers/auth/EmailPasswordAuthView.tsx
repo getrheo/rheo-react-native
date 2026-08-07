@@ -22,6 +22,7 @@ import {
 import {
   rendererEmailPasswordAuthModel,
   rendererEmailPasswordSimInputColors,
+  rendererFormErrorChrome,
 } from '@getrheo/renderer-core';
 import { useEmailPasswordAuthDispatch } from '../../../emailPasswordAuth';
 import { ChromeView, ChoicePressable, type Ctx, type RenderLayer } from '../../LayerRendererShared';
@@ -50,9 +51,17 @@ export const EmailPasswordAuthView = ({
   const dispatchSubmit = useEmailPasswordAuthDispatch();
   const [values, setValues] = useState({ email: '', password: '', confirm: '' });
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<EmailPasswordSlot, string>>>({});
+  const [touched, setTouched] = useState<Partial<Record<EmailPasswordSlot, boolean>>>({});
   const [pending, setPending] = useState(false);
   const setSlot = useCallback((slot: EmailPasswordSlot) => (t: string) => {
     setError(null);
+    setFieldErrors((prev) => {
+      if (!prev[slot]) return prev;
+      const next = { ...prev };
+      delete next[slot];
+      return next;
+    });
     setValues((prev) => (prev[slot] === t ? prev : { ...prev, [slot]: t }));
   }, []);
   const setSlotFromNativeEvent = useCallback(
@@ -60,6 +69,12 @@ export const EmailPasswordAuthView = ({
       const next = e.nativeEvent.text;
       if (typeof next !== 'string') return;
       setError(null);
+      setFieldErrors((prev) => {
+        if (!prev[slot]) return prev;
+        const n = { ...prev };
+        delete n[slot];
+        return n;
+      });
       setValues((prev) => (prev[slot] === next ? prev : { ...prev, [slot]: next }));
     },
     [],
@@ -71,8 +86,9 @@ export const EmailPasswordAuthView = ({
   const authLayout = resolveAuthLayoutAtWidth(layer, w);
   const gap = resolveLayerGap(layer.kind, authLayout.gap);
   const simInputColors = rendererEmailPasswordSimInputColors(ctx.theme);
+  const errorChrome = rendererFormErrorChrome(ctx.theme);
 
-  const inputChrome: React.ComponentProps<typeof TextInput>['style'] = {
+  const inputChromeBase: React.ComponentProps<typeof TextInput>['style'] = {
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
@@ -80,16 +96,18 @@ export const EmailPasswordAuthView = ({
     backgroundColor: simInputColors.background,
     color: dark ? '#fafafa' : '#0a0a0a',
     borderWidth: 1,
-    borderColor: simInputColors.border,
   };
 
   const fire = (): void => {
     setError(null);
     const model = rendererEmailPasswordAuthModel(layer, values);
+    setTouched({ email: true, password: true, confirm: true });
     if (!model.canSubmit) {
-      if (!model.validation.ok) setError(model.validation.message);
+      setFieldErrors(model.fieldErrors);
+      // Field-level messages already cover client validation; keep banner for host errors only.
       return;
     }
+    setFieldErrors({});
     const payload = {
       kind: 'email_password_auth_resolve' as const,
       layerId: layer.id,
@@ -143,6 +161,7 @@ export const EmailPasswordAuthView = ({
   };
 
   const childCtxBase: Ctx = { ...ctx, isRegionRoot: false, regionKind: undefined };
+  const authModelPreview = rendererEmailPasswordAuthModel(layer, values);
 
   const renderFieldRow = (ch: EmailPasswordFieldLayer): ReactNode => {
     const resolvedField = resolveCommonStyleAtWidth(ch.style, ch.styleBreakpoints, w);
@@ -168,6 +187,7 @@ export const EmailPasswordAuthView = ({
             ? ('new-password' as const)
             : ('current-password' as const)
           : ('password' as const);
+    const slotError = touched[ch.slot] ? fieldErrors[ch.slot] : undefined;
     const fieldPair = commonViewStylePair(
       stripCommonLayoutForInner(resolvedField),
       ctx.manifest.theme,
@@ -191,15 +211,30 @@ export const EmailPasswordAuthView = ({
           value={val}
           onChangeText={onChange}
           onChange={onNativeChange}
+          onBlur={() => setTouched((prev) => ({ ...prev, [ch.slot]: true }))}
           keyboardType={kb}
           secureTextEntry={secure}
           autoCapitalize={ch.slot === 'email' ? 'none' : 'sentences'}
           autoCorrect={false}
           textContentType={textContentType}
           autoComplete={autoComplete}
+          passwordRules={
+            secure && mode === 'sign_up' ? authModelPreview.iosPasswordRules : undefined
+          }
           placeholderTextColor={dark ? '#71717a' : '#a1a1aa'}
-          style={inputChrome}
+          style={{
+            ...inputChromeBase,
+            borderColor: slotError ? errorChrome.fieldBorderColor : simInputColors.border,
+          }}
         />
+        {slotError ? (
+          <Text
+            accessibilityRole="alert"
+            style={{ fontSize: 12, lineHeight: 16, color: errorChrome.textColor }}
+          >
+            {slotError}
+          </Text>
+        ) : null}
       </ChromeView>
     );
   };
@@ -311,15 +346,15 @@ export const EmailPasswordAuthView = ({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 8,
-    backgroundColor: dark ? 'rgba(248, 113, 113, 0.12)' : 'rgba(220, 38, 38, 0.08)',
+    backgroundColor: errorChrome.backgroundColor,
     borderWidth: 1,
-    borderColor: dark ? 'rgba(248, 113, 113, 0.35)' : 'rgba(185, 28, 28, 0.22)',
+    borderColor: errorChrome.borderColor,
   };
   const errorTextStyle = {
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '500' as const,
-    color: dark ? '#fca5a5' : '#b91c1c',
+    color: errorChrome.textColor,
   };
 
   const fieldChildren = layer.children.filter(

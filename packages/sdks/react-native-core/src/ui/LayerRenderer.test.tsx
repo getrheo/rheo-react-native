@@ -53,6 +53,10 @@ vi.mock('@react-native-community/slider', () => ({
   default: (props: { children?: unknown }) => props.children ?? null,
 }));
 
+vi.mock('@react-native-community/datetimepicker', () => ({
+  default: () => null,
+}));
+
 vi.mock('react-native-gesture-handler', () => ({
   Gesture: {
     Tap: () => ({

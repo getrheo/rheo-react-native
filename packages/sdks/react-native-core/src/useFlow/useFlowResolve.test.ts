@@ -53,6 +53,7 @@ const sampleResolve = (): SdkResolveResponse =>
     mediaMap: {},
     integrations: {
       revenuecat: { enabled: false, defaultOfferingId: '', defaultPlacementId: '' },
+      superwall: { enabled: false, defaultPlacementId: '' },
       appsflyer: { enabled: false },
     },
   }) satisfies SdkResolveResponse;

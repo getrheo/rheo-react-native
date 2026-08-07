@@ -6,8 +6,14 @@ import { collectFlowBuilderIssues } from '@getrheo/flow-runtime/flowBuilderRules
 import { validateManifest, validatePublishable } from '@getrheo/flow-runtime/validation';
 import { buildAnimationStressHarnessManifest } from './animationStressHarnessManifest';
 import { buildAuthCanvasManifest } from './authCanvasManifest';
+import { buildPaywallIntegrationsHarnessManifest } from './paywallIntegrationsHarnessManifest';
 import { buildPaywallManifest } from './paywallManifest';
 import { buildPiedPiperOnboardingManifest } from './piedPiperOnboardingManifest';
+import {
+  buildSdkRegressionGoldComments,
+  buildSdkRegressionGoldManifest,
+} from './sdkRegressionGoldManifest';
+import { SRG_SCREEN_IDS } from './sdkRegressionGold/comments.js';
 import { buildLayerStressHarnessManifest } from './stressHarnessManifest';
 import { buildWelcomeLinearManifest } from './welcomeLinearManifest';
 
@@ -90,6 +96,26 @@ describe('dev seed manifests', () => {
     expectSeedManifestHealthy(m);
   });
 
+  it('parses paywall integrations harness (RevenueCat + Superwall)', () => {
+    const id = randomUUID();
+    const m = buildPaywallIntegrationsHarnessManifest(id);
+    expect(m.entryScreenId).toBe('scr_pi_pick');
+    expect(m.externalSurfaceNodes?.map((n) => n.config.provider)).toEqual([
+      'revenuecat',
+      'superwall',
+    ]);
+    const pick = m.screens.find((s) => s.id === 'scr_pi_pick');
+    const choice = pick?.regions.body.children?.find((c) => c.kind === 'single_choice');
+    expect(choice && 'branching' in choice ? choice.branching : null).toMatchObject({
+      enabled: true,
+      conditions: [
+        { choiceId: 'opt_revenuecat', goTo: 'surf_pi_rc' },
+        { choiceId: 'opt_superwall', goTo: 'surf_pi_sw' },
+      ],
+    });
+    expectSeedManifestHealthy(m);
+  });
+
   it('parses Pied Piper onboarding seed flow', () => {
     const id = randomUUID();
     const m = buildPiedPiperOnboardingManifest(id);
@@ -101,5 +127,19 @@ describe('dev seed manifests', () => {
       offeringId: 'default',
     });
     expectSeedManifestHealthy(m);
+  });
+
+  it('parses SDK regression gold harness', () => {
+    const id = randomUUID();
+    const m = buildSdkRegressionGoldManifest(id);
+    expect(m.entryScreenId).toBe('scr_srg_entry');
+    expect(m.screens.map((s) => s.id)).toEqual([...SRG_SCREEN_IDS]);
+    expectSeedManifestHealthy(m);
+    const comments = buildSdkRegressionGoldComments();
+    expect(comments.length).toBe(SRG_SCREEN_IDS.length + 1);
+    for (const comment of comments) {
+      expect(comment.body.length).toBeGreaterThan(20);
+      expect(comment.body.length).toBeLessThanOrEqual(8000);
+    }
   });
 });

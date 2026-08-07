@@ -7,6 +7,8 @@ export {
   SEED_ANIMATION_LAB_FLOW_NAME,
   SEED_AUTH_CANVAS_FLOW_NAME,
   SEED_PAYWALL_FLOW_NAME,
+  SEED_PAYWALL_INTEGRATIONS_FLOW_NAME,
+  SEED_SDK_REGRESSION_GOLD_FLOW_NAME,
   SEED_STRESS_HARNESS_FLOW_NAME,
   SEED_TEMPLATE_FLOW_NAMES,
   SEED_WELCOME_FLOW_NAME,
@@ -16,8 +18,13 @@ export {
   buildLayerStressHarnessManifest,
   buildStressHarnessManifest,
 } from './stressHarnessManifest';
+export {
+  buildSdkRegressionGoldComments,
+  buildSdkRegressionGoldManifest,
+} from './sdkRegressionGoldManifest';
 export { buildWelcomeLinearManifest } from './welcomeLinearManifest';
 export { buildPaywallManifest } from './paywallManifest';
+export { buildPaywallIntegrationsHarnessManifest } from './paywallIntegrationsHarnessManifest';
 export {
   buildPiedPiperOnboardingManifest,
   PIED_PIPER_ONBOARDING_FLOW_ID,

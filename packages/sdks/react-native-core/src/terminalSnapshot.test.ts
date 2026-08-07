@@ -18,6 +18,7 @@ const baseResolve = (manifest: FlowManifest): SdkResolveResponse => ({
   features: { attribution: false },
   integrations: {
     revenuecat: { enabled: false, defaultOfferingId: '', defaultPlacementId: '' },
+    superwall: { enabled: false, defaultPlacementId: '' },
     appsflyer: { enabled: false },
   },
 });
