@@ -1,6 +1,6 @@
 # @getrheo/react-native-expo
 
-Expo and Expo dev-client entry for the Rheo React Native SDK. Re-exports `@getrheo/react-native-core` and registers **Expo** adapters (`expo-video`, `expo-store-review`). Install **one** flavor: not `@getrheo/react-native-bare`.
+Expo and Expo dev-client entry for the Rheo React Native SDK. Re-exports `@getrheo/react-native-core` and registers **Expo** adapters (`expo-video`, `expo-store-review`, `expo-notifications`). Install **one** flavor: not `@getrheo/react-native-bare`.
 
 React + React Native SDK for Rheo. The state machine lives in `@getrheo/flow-runtime` and schemas live in `@getrheo/contracts`; only rendering is platform-specific.
 
@@ -50,9 +50,13 @@ The SDK default **`apiBaseUrl`** is **`https://api.getrheo.io`**. Omit it in pro
   dashboard can join to your systems. Optionally set once on `RheoProvider`;
   **`useRheoCustomUserId()`** exposes `setCustomUserId()` so CRM ids can change
   at runtime (updates apply to queued events **at flush** time).
+- **`identify()`**: After collecting email + a marketing checkbox, call
+  `await identify({ email, marketingConsent: 'granted', topicConsents? }, config)`
+  (`POST /v1/sdk/identify`). Uses the resolved `appUserId` from config/`userId`
+  (or the persisted anonymous id). Consent is tri-state: `granted` | `denied` | `unknown`.
 
 ```tsx
-import { Flow, RheoProvider, useRheoCustomUserId } from '@getrheo/react-native-expo';
+import { Flow, RheoProvider, identify, useRheo, useRheoCustomUserId } from '@getrheo/react-native-expo';
 
 function Screen() {
   const { setCustomUserId } = useRheoCustomUserId();
@@ -216,10 +220,10 @@ Additional built-in handlers will ship per `permissionKey` without bringing back
 ### Native checklist (engineering, per app)
 
 - **Bare React Native**: add optional peer **`react-native-permissions`**. For each capability you ship in flows, add the matching entries to iOS **`setup_permissions`** and Android **`AndroidManifest.xml`**, plus the **Info.plist** usage descriptions the upstream README lists (for example **`NSPhotoLibraryUsageDescription`**, **`NSCalendarsFullAccessUsageDescription`** for calendar). Notifications still need **`POST_NOTIFICATIONS`** on Android 13+.
-- **Expo**: configure plugin **`react-native-permissions`** and **`ios.infoPlist` / `android.permissions`** for every capability you ship in flows, run **`expo prebuild`** when regenerating native projects, **`pod install`**, rebuild the dev client. Older Android releases may still need **`READ_EXTERNAL_STORAGE`** for photo-library–style prompts if your `minSdk`/`targetSdk` require it. Push token registration stays app-specific beyond notification authorization.
+- **Expo**: configure plugin **`react-native-permissions`** and **`ios.infoPlist` / `android.permissions`** for every capability you ship in flows, run **`expo prebuild`** when regenerating native projects, **`pod install`**, rebuild the dev client. Older Android releases may still need **`READ_EXTERNAL_STORAGE`** for photo-library–style prompts if your `minSdk`/`targetSdk` require it. After a notifications grant, the SDK calls `expo-notifications` `getDevicePushTokenAsync` and posts the native device token. Add the `expo-notifications` config plugin, the iOS Push capability, and `google-services.json` for FCM.
 - **Growth / dashboard**: branches are authored only in the builder; **no handler code**.
 
-Requesting authorization is separate from registering for remote push tokens; token plumbing stays in the application if you alert server-side campaigns.
+`registerPush()` reads the device token from `expo-notifications`. `registerPush({ token, platform, provider })` uploads a token the host already has. `unregisterPush()` revokes the cached token. A later `userId` change re-registers that token. A failed upload does not change the permission outcome.
 
 ---
 
@@ -228,12 +232,12 @@ Requesting authorization is separate from registering for remote push tokens; to
 One install — all peers are **required** for the Expo flavor (no optional meta). **`@react-native-community/slider`** and **`@react-native-community/datetimepicker`** ship as direct dependencies of core.
 
 ```bash
-pnpm add @getrheo/react-native-expo@2.6.0 \
+pnpm add @getrheo/react-native-expo@3.0.0 \
   react react-native \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \
   react-native-vector-icons @react-native-async-storage/async-storage \
-  react-native-safe-area-context expo-font expo-store-review expo-video
+  react-native-safe-area-context expo-font expo-store-review expo-video expo-notifications
 ```
 
 **Integrations (not SDK peers):** install **`react-native-appsflyer`**, **`react-native-purchases`** + **`react-native-purchases-ui`**, and/or **`expo-superwall`** / **`@superwall/react-native-superwall`** only when you use attribution, RevenueCat, or Superwall paywall steps.

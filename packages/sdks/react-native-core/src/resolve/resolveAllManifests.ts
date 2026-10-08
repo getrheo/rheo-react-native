@@ -1,4 +1,6 @@
-import type { SdkResolveAllResponse, SdkResolveResponse } from '@getrheo/contracts';
+import type { SdkResolveResponse } from '@getrheo/contracts';
+import { codeResolveEtag, SdkCodeResolveResponseSchema } from '@getrheo/contracts/sdkChannel';
+import { saveCodeResolveCache } from './resolveChannel.js';
 import { mapChannelError } from '../client.js';
 import { getResolvedAppUserId } from '../events.js';
 import type { useRheo } from '../client.js';
@@ -48,18 +50,41 @@ export const resolveAllManifests = async ({
     throw await mapChannelError(response);
   }
 
-  const data = (await response.json()) as SdkResolveAllResponse;
-  const channels = data.channels ?? [];
+  const data = (await response.json()) as { channels?: unknown[] };
   const cachedAt = Date.now();
+  const flows: SdkResolveResponse[] = [];
 
   await Promise.all(
-    channels.map((entry) =>
-      saveManifestResolveCache(
+    (data.channels ?? []).map(async (raw) => {
+      const kind = (raw as { kind?: string }).kind;
+      if (kind != null && kind !== 'flow' && kind !== 'code') return;
+      if (kind === 'code') {
+        const parsed = SdkCodeResolveResponseSchema.safeParse(raw);
+        if (!parsed.success) return;
+        const key = manifestResolveCacheKey(
+          apiBaseUrl,
+          publishableKey,
+          parsed.data.channelId,
+          config.locale,
+        );
+        saveCodeResolveCache(key, {
+          etag: codeResolveEtag(
+            parsed.data.assignmentVersion,
+            parsed.data.variantKey,
+            parsed.data.parameters,
+          ),
+          body: parsed.data,
+        });
+        return;
+      }
+      const entry = raw as SdkResolveResponse;
+      flows.push(entry);
+      await saveManifestResolveCache(
         manifestResolveCacheKey(apiBaseUrl, publishableKey, entry.channelId, config.locale),
         { etag: reconstructEtag(entry), body: entry, cachedAt },
-      ),
-    ),
+      );
+    }),
   );
 
-  return channels;
+  return flows;
 };

@@ -44,7 +44,7 @@ export type TextLayerStyleOptions = {
 
 /**
  * Native style helpers — port of the DOM `commonCss/textCss/buttonCss/...`
- * helpers in `@rheo/renderer-web/LayerRenderer.tsx`. Keep this file in
+ * helpers in `@getrheo/renderer-web/LayerRenderer.tsx`. Keep this file in
  * lockstep with the DOM version when the layer schema evolves.
  *
  * Text color: on web, `LayerRenderer` sets a root `color` so layers without

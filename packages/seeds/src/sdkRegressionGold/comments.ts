@@ -1,4 +1,9 @@
-import type { FlowTemplateDefaultComment } from '@rheo/platform-contracts/flowTemplateComments';
+/** Inlined for public mirror — @rheo/platform-contracts stays private. */
+export type FlowTemplateDefaultComment = {
+  positionX: number;
+  positionY: number;
+  body: string;
+};
 
 /** Canvas layout cell size for placing screen nodes + nearby comment pins. */
 export const SRG_LAYOUT = {

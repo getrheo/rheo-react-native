@@ -12,6 +12,10 @@ import { ATTR_KEY_PROVIDER } from '@getrheo/attribution';
 import type { DecisionEvaluationTelemetry, FlowState } from '@getrheo/flow-runtime';
 import type { SdkResolveResponse } from '@getrheo/contracts';
 import { createAttributionRuntime } from '../attribution/createAttributionRuntime.js';
+import {
+  setNativeProductAnalyticsAttribution,
+  settleNativeProductAnalyticsAttribution,
+} from '../productAnalyticsAttribution.js';
 import { getResolvedAppUserId, type TrackEventInput } from '../events.js';
 import type { useRheo } from '../client.js';
 import { shallowEqualSdkAttrs } from './platform.js';
@@ -95,6 +99,21 @@ export const useFlowTelemetry = ({
   }, [resolved, config.attribution?.enabled]);
 
   const [attributionSdk, setAttributionSdk] = useState<Record<string, unknown>>({});
+
+  useEffect(() => {
+    setNativeProductAnalyticsAttribution(attributionSdk);
+  }, [attributionSdk]);
+
+  useEffect(() => {
+    if (config.attribution?.enabled === false) {
+      settleNativeProductAnalyticsAttribution();
+      return;
+    }
+    if (!resolved) return;
+    const attributionOff = resolved.features?.attribution === false;
+    const appsFlyerOff = resolved.integrations?.appsflyer?.enabled !== true;
+    if (attributionOff || appsFlyerOff) settleNativeProductAnalyticsAttribution();
+  }, [config.attribution?.enabled, resolved]);
 
   const mergedSdkAttributes = useMemo(
     () => ({ ...(config.sdkAttributes ?? {}), ...attributionSdk }),

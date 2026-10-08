@@ -10,6 +10,31 @@ export const inferReactNativeRuntimeOs = (): 'ios' | 'android' | null => {
   return null;
 };
 
+/** OS and device reported with product-analytics events. Browser stays unset. */
+export const nativeProductAnalyticsClient = (): { os?: string; device?: string } => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- sync RN probe; web/Node throws
+    const { Platform } = require('react-native') as typeof import('react-native');
+    if (Platform.OS === 'ios') {
+      const constants = Platform.constants as { interfaceIdiom?: string };
+      const device = constants.interfaceIdiom === 'pad' ? 'iPad' : 'iPhone';
+      const version = typeof Platform.Version === 'string' ? Platform.Version : '';
+      return { os: version ? `iOS ${version}` : 'iOS', device };
+    }
+    if (Platform.OS === 'android') {
+      const constants = Platform.constants as { Release?: string; Model?: string; Brand?: string };
+      const model = [constants.Brand, constants.Model].filter(Boolean).join(' ');
+      return {
+        os: constants.Release ? `Android ${constants.Release}` : 'Android',
+        ...(model ? { device: model } : {}),
+      };
+    }
+  } catch {
+    /* not a React Native runtime */
+  }
+  return {};
+};
+
 export const inferSdkPlatform = (): 'ios' | 'android' | 'web' => {
   const fromRn = inferReactNativeRuntimeOs();
   if (fromRn) return fromRn;

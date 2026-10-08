@@ -116,7 +116,7 @@ describe('extractRevenueCatPurchaseCommerce', () => {
     expect(commerce).toBeUndefined();
   });
 
-  it('reads product_id, price, currency, and period_type from the matching offering package', async () => {
+  it('reads product_id and period_type without a catalog price', async () => {
     restorePurchases = __setRevenueCatPurchasesModuleForTests({
       getCustomerInfo: () =>
         Promise.resolve({
@@ -158,9 +158,6 @@ describe('extractRevenueCatPurchaseCommerce', () => {
     expect(commerce).toEqual({
       product_id: 'pro_annual',
       offering_id: 'default',
-      package_id: '$rc_annual',
-      price: 49.99,
-      currency: 'USD',
       period_type: 'normal',
     });
   });

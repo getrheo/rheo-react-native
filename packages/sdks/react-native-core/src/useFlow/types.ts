@@ -91,6 +91,13 @@ export const defaultExternalSurfacePresenter: ExternalSurfacePresenter = (node) 
   if (node.config.provider === 'superwall') {
     return presentSuperwallPaywall(node.config);
   }
+  if (node.config.provider === 'stripe') {
+    // Stripe Hosted Checkout is implemented by `@getrheo/react` (web). Native SDKs soft-fail.
+    return Promise.resolve({
+      outcome: 'failed' as const,
+      sdkKeyPatch: { onb_surface_last_event: 'failed' },
+    });
+  }
   if (node.config.provider === 'headless') {
     // Headless surfaces are rendered by `Flow` / the host via `externalSurfaces`.
     // The presenter path must not run for them; callers skip headless before invoking.

@@ -105,42 +105,6 @@ export const useFlowExternalSurfaces = ({
             outcome: result.outcome,
           },
         });
-        if (result.outcome === 'purchase_completed') {
-          const commerce = result.commerce;
-          const productId = commerce?.product_id;
-          const offeringId =
-            commerce?.offering_id ??
-            (node.config.provider === 'revenuecat' ? node.config.offeringId : undefined) ??
-            (node.config.provider === 'superwall' ? node.config.placementId : undefined);
-          if (productId) {
-            const properties: Record<string, string | number> = {
-              provider: node.config.provider,
-              surface_node_id: pending.nodeId,
-              product_id: productId,
-            };
-            if (offeringId) properties.offering_id = offeringId;
-            if (commerce?.package_id) properties.package_id = commerce.package_id;
-            if (commerce?.period_type) properties.period_type = commerce.period_type;
-            // Price + currency must travel together; the adapter strips one
-            // when the other is missing, so this check is belt + suspenders.
-            if (
-              typeof commerce?.price === 'number' &&
-              typeof commerce?.currency === 'string'
-            ) {
-              properties.price = commerce.price;
-              properties.currency = commerce.currency;
-            }
-            enqueueSdk({
-              name: 'iap_purchase',
-              flowId: resolved.flowId,
-              versionId: resolved.versionId,
-              experimentId: resolved.experimentId,
-              variantId: resolved.variantId,
-              stepId: pending.nodeId,
-              properties,
-            });
-          }
-        }
         respondRef.current({
           kind: 'external_surface_outcome',
           nodeId: pending.nodeId,
