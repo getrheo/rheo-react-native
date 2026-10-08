@@ -5,7 +5,7 @@ Bare React Native entry for the Rheo SDK. Re-exports `@getrheo/react-native-core
 ## Install
 
 ```bash
-pnpm add @getrheo/react-native-bare@2.6.0 \
+pnpm add @getrheo/react-native-bare@3.0.0 \
   react react-native \
   react-native-permissions react-native-gesture-handler react-native-reanimated \
   react-native-linear-gradient react-native-svg lottie-react-native \
@@ -20,6 +20,8 @@ Complete native setup for permissions (Info.plist / AndroidManifest) per [react-
 ## Usage
 
 Same API as the Expo flavor (`Flow`, `RheoProvider`, `useFlow`, …). See [`react-native-expo/README.md`](../react-native-expo/README.md) for flow semantics, events, terminal payloads, and production **`apiBaseUrl`** guidance — import from `@getrheo/react-native-bare` instead.
+
+Push uses the same `registerPush` / `unregisterPush` helpers. Bare does not read a token for you. Call `registerPushTokenAdapter` from `@getrheo/react-native-core/platform` with `getDevicePushToken`, or pass `{ token, platform, provider }` to `registerPush`. After a notifications grant the SDK calls `registerPush()` and ignores a missing adapter.
 
 Cross-SDK integration map (RN subpaths vs SwiftUI): [`packages/sdks/docs/CROSS_SDK_INTEGRATION.md`](../docs/CROSS_SDK_INTEGRATION.md).
 

@@ -5,6 +5,7 @@ import { initFlowState } from '@getrheo/flow-runtime';
 import { buildTerminalSnapshot } from './terminalSnapshot';
 
 const baseResolve = (manifest: FlowManifest): SdkResolveResponse => ({
+  kind: 'flow',
   flowId: manifest.flowId,
   versionId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
   versionNumber: 1,
@@ -13,6 +14,7 @@ const baseResolve = (manifest: FlowManifest): SdkResolveResponse => ({
   channelId: 'ch_terminal_snap',
   experimentId: null,
   variantId: null,
+  experiment: null,
   manifest,
   mediaMap: {},
   features: { attribution: false },
@@ -20,6 +22,7 @@ const baseResolve = (manifest: FlowManifest): SdkResolveResponse => ({
     revenuecat: { enabled: false, defaultOfferingId: '', defaultPlacementId: '' },
     superwall: { enabled: false, defaultPlacementId: '' },
     appsflyer: { enabled: false },
+    stripe: { enabled: false },
   },
 });
 

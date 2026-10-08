@@ -24,6 +24,14 @@ export type {
   ManifestResolveCacheSummary,
   ManifestResolveCacheKeyParts,
 } from './resolve/manifestResolveCache.js';
+export { useChannel } from './useChannel';
+export type { UseChannelOptions, UseChannelResult } from './useChannel';
+export { useBanner } from './useBanner/useBanner';
+export type { UseBannerOptions, UseBannerResult, BannerChannelBody } from './useBanner/useBanner';
+export { RheoBanner } from './useBanner/RheoBanner';
+export type { RheoBannerProps } from './useBanner/RheoBanner';
+export { logChannelEvent } from './resolve/resolveChannel';
+export type { RheoChannel, CodeChannel, BannerChannel } from './resolve/resolveChannel';
 export { useFlow } from './useFlow';
 export { buildBrandingFontLoadMap } from '@getrheo/renderer-core';
 export type {
@@ -79,6 +87,25 @@ export {
   PERSISTED_APP_USER_ID_KEY,
 } from './events';
 export type {TrackEventInput, SdkEventBuildConfig} from './events';
+export { identify } from './identify';
+export {
+  bindNavigationState,
+  focusedRouteName,
+  logEvent,
+  screen,
+  setBillingIdentity,
+  setUserId,
+} from './productAnalytics';
+export type {IdentifyInput} from './identify';
+export { registerPush, unregisterPush } from './registerPush';
+export type {RegisterPushInput} from './registerPush';
+export { track } from './track';
+export type {TrackCustomEventInput} from './track';
+export type {
+  MarketingConsent,
+  SdkIdentifyRequest,
+  SdkIdentifyResponse,
+} from '@getrheo/contracts';
 export { EventQueue } from './eventQueue';
 export type {AttributionRuntimeProvider, AttributionStorageAdapter, CreateAttributionRuntimeOptions, } from './attribution/attributionTypes';
 export type {AttributionRuntimeHandle} from './attribution/createAttributionRuntime';

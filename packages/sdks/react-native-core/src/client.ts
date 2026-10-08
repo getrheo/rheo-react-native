@@ -24,6 +24,8 @@ import {
   __prefetchChannelWithConfig,
   __registerPrefetchConfig,
 } from './prefetch';
+import { startNativeProductAnalytics } from './productAnalytics';
+import { bindActivePushConfig, rebindCachedPushRegistration } from './registerPush';
 
 export type RheoAttributionConfig = {
   /** When false, skips attribution listeners and device cache (default: true). */
@@ -71,6 +73,8 @@ export type RheoConfig = {
   customProperties?: Record<string, string>;
   /** Optional fetch override for testing or RN polyfills */
   fetcher?: typeof fetch;
+  /** Product analytics collection. Defaults to on when `RheoProvider` mounts. */
+  analytics?: { enabled?: boolean };
 };
 
 type RheoCtxValue = {
@@ -155,6 +159,10 @@ export const RheoProvider = ({
   // helpers work outside the React tree (navigation listeners, push handlers).
   const mergedConfigRef = useRef(mergedConfig);
   mergedConfigRef.current = mergedConfig;
+  bindActivePushConfig(mergedConfig);
+  useEffect(() => {
+    void rebindCachedPushRegistration(mergedConfig);
+  }, [mergedConfig.userId, mergedConfig.publishableKey, mergedConfig.apiBaseUrl, mergedConfig.fetcher]);
   useEffect(() => {
     __registerPrefetchConfig(mergedConfig);
     return () => {
@@ -226,6 +234,19 @@ export const RheoProvider = ({
       queue.shutdown();
     };
   }, [queue]);
+
+  const setCustomUserIdRef = useRef(setCustomUserId);
+  setCustomUserIdRef.current = setCustomUserId;
+  useEffect(() => {
+    if (!appUserIdReady) return undefined;
+    return startNativeProductAnalytics({
+      enabled: mergedConfigRef.current.analytics?.enabled !== false,
+      transport,
+      getBuildConfig: () => sdkEventSnap.current,
+      onUserId: (id) => setCustomUserIdRef.current(id),
+      logger: createSdkLogger(logLevel),
+    });
+  }, [appUserIdReady, transport, logLevel, resolvedConfig.analytics?.enabled]);
 
   const value = useMemo<RheoCtxValue>(
     () => ({ config: mergedConfig, queue, setCustomUserId }),

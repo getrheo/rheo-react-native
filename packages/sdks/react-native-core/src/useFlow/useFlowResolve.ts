@@ -3,7 +3,7 @@ import { RHEO_DEFAULT_SDK_API_BASE_URL } from '@getrheo/contracts/sdk';
 import { initFlowState, startFlow, type FlowState } from '@getrheo/flow-runtime';
 import type { SdkResolveResponse } from '@getrheo/contracts';
 import type { useRheo } from '../client.js';
-import { resolveManifest } from '../resolve/resolveManifest.js';
+import { resolveChannel } from '../resolve/resolveChannel.js';
 import { loadBrandingFonts } from '../platform/fontAdapter.js';
 import type { EnqueueSdkFn } from './inputCaptureAnalytics.js';
 import { inferSdkPlatform } from './platform.js';
@@ -67,7 +67,7 @@ export const useFlowResolve = ({
       setError(null);
       setLoading(true);
 
-      resolveManifest({
+      resolveChannel({
         apiBaseUrl: config.apiBaseUrl ?? RHEO_DEFAULT_SDK_API_BASE_URL,
         publishableKey: config.publishableKey,
         channelId: channelTrimmed,
@@ -75,6 +75,9 @@ export const useFlowResolve = ({
       })
         .then(async (data) => {
           if (isCancelled()) return;
+          if (!data || (data.kind != null && data.kind !== 'flow')) {
+            throw new Error('useFlow requires a flow channel');
+          }
           logReceivedFlowManifest(data);
           await loadBrandingFonts(data.branding, data.mediaMap);
           if (isCancelled()) return;
@@ -160,7 +163,7 @@ export const useFlowResolve = ({
         if (seed) {
           void loadBrandingFonts(seed.branding, seed.mediaMap);
         }
-        resolveManifest({
+        resolveChannel({
           apiBaseUrl: config.apiBaseUrl ?? RHEO_DEFAULT_SDK_API_BASE_URL,
           publishableKey: config.publishableKey,
           channelId: channelTrimmed,

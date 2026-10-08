@@ -14,8 +14,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@getrheo/contracts": "2.6.0",
-    "@getrheo/flow-runtime": "2.6.0"
+    "@getrheo/contracts": "3.0.0",
+    "@getrheo/flow-runtime": "3.0.0"
   },
   "devDependencies": {
     "@rheo/config": "workspace:*",

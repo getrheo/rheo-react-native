@@ -73,6 +73,7 @@ const manifest: FlowManifest = {
 };
 
 const resolveResponse: SdkResolveResponse = {
+  kind: 'flow',
   flowId: manifest.flowId,
   versionId: '22222222-2222-2222-2222-222222222222',
   versionNumber: 1,
@@ -81,6 +82,7 @@ const resolveResponse: SdkResolveResponse = {
   channelId: 'ch_test_xyz',
   experimentId: null,
   variantId: null,
+  experiment: null,
   manifest,
   mediaMap: {},
   features: { attribution: true },
@@ -88,6 +90,7 @@ const resolveResponse: SdkResolveResponse = {
     revenuecat: { enabled: false, defaultOfferingId: '', defaultPlacementId: '' },
     superwall: { enabled: false, defaultPlacementId: '' },
     appsflyer: { enabled: true },
+    stripe: { enabled: false },
   },
 };
 
@@ -220,7 +223,7 @@ describe('useFlow external surface integration', () => {
     tree?.unmount();
   });
 
-  it('enqueues iap_purchase with commerce details on purchase_completed', async () => {
+  it('records purchase_completed without a client iap_purchase price', async () => {
     const presenter: ExternalSurfacePresenter = vi.fn(
       async (): Promise<RevenueCatPresentResult> => ({
         outcome: 'purchase_completed',
@@ -240,7 +243,6 @@ describe('useFlow external surface integration', () => {
     );
     const harness: Harness = { current: null };
     const eventNames: string[] = [];
-    const iapProperties: Record<string, unknown>[] = [];
 
     const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
       const u = String(url);
@@ -254,10 +256,7 @@ describe('useFlow external surface integration', () => {
         const parsed = JSON.parse(String(init?.body ?? '{}')) as {
           events?: Array<{ name: string; properties?: Record<string, unknown> }>;
         };
-        for (const e of parsed.events ?? []) {
-          eventNames.push(e.name);
-          if (e.name === 'iap_purchase' && e.properties) iapProperties.push(e.properties);
-        }
+        for (const e of parsed.events ?? []) eventNames.push(e.name);
         return new Response('{}', { status: 200 });
       }
       return new Response('not found', { status: 404 });
@@ -286,23 +285,13 @@ describe('useFlow external surface integration', () => {
     });
     await flush();
     await flush();
-    // Force a queue drain — `iap_purchase` is not a terminal event so it
-    // would otherwise wait for the 5s debounce timer. Unmount triggers
-    // `shutdown()` which drains the pending buffer through `fetch`.
     await act(async () => {
       tree?.unmount();
     });
     await flush();
 
-    expect(eventNames).toContain('iap_purchase');
-    expect(eventNames.indexOf('surface_outcome')).toBeLessThan(eventNames.indexOf('iap_purchase'));
-    expect(iapProperties[0]).toMatchObject({
-      provider: 'revenuecat',
-      surface_node_id: 'surf_paywall',
-      product_id: 'pro_annual',
-      price: 49.99,
-      currency: 'USD',
-    });
+    expect(eventNames).toContain('surface_outcome');
+    expect(eventNames).not.toContain('iap_purchase');
   });
 
   it('emits surface_outcome `failed` when the presenter throws', async () => {
@@ -651,6 +640,7 @@ const linearManifest: FlowManifest = {
 };
 
 const linearResolve: SdkResolveResponse = {
+  kind: 'flow',
   flowId: LINEAR_FLOW_ID,
   versionId: '55555555-5555-5555-5555-555555555555',
   versionNumber: 1,
@@ -659,6 +649,7 @@ const linearResolve: SdkResolveResponse = {
   channelId: 'ch_test_linear',
   experimentId: null,
   variantId: null,
+  experiment: null,
   manifest: linearManifest,
   mediaMap: {},
   features: { attribution: false },
@@ -666,6 +657,7 @@ const linearResolve: SdkResolveResponse = {
     revenuecat: { enabled: false, defaultOfferingId: '', defaultPlacementId: '' },
     superwall: { enabled: false, defaultPlacementId: '' },
     appsflyer: { enabled: false },
+    stripe: { enabled: false },
   },
 };
 

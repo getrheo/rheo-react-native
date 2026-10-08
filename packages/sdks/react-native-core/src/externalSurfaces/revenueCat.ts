@@ -3,13 +3,8 @@ import type { SurfaceSdkKeyPatch } from '@getrheo/flow-runtime';
 import { getSdkLogger } from '../logging/sdkLogger';
 
 /**
- * Commerce details extracted from RevenueCat after a successful purchase. The
- * SDK forwards these to the `iap_purchase` analytics event so dashboards can
- * report revenue, product, and offering without calling RC server APIs.
- *
- * Fields are best-effort — when RC's APIs are unavailable or the host's RC
- * version omits price metadata, individual fields may be missing. The
- * `iap_purchase` event still fires with the fields we have.
+ * Product metadata from RevenueCat after a successful purchase.
+ * Dollars come from the RevenueCat webhook, not from this object.
  */
 export type RevenueCatPurchaseCommerce = Pick<
   IapPurchaseEventProperties,
@@ -243,9 +238,8 @@ export const extractRevenueCatPurchaseCommerce = async (
 
   const productId = pickRecentProductId(info);
   if (!productId) {
-    // Without a product id we can't emit a valid `iap_purchase` event.
-    // The flow still advances on `purchase_completed`; we just skip
-    // commerce analytics for this purchase.
+    // Without a product id there is no commerce metadata to attach.
+    // The flow still advances on `purchase_completed`.
     return undefined;
   }
 
@@ -257,47 +251,6 @@ export const extractRevenueCatPurchaseCommerce = async (
   );
   const periodType = normalizePeriodType(activeEntitlement?.periodType);
   if (periodType) commerce.period_type = periodType;
-
-  if (typeof purchases.getOfferings === 'function') {
-    try {
-      const offerings = await purchases.getOfferings();
-      const candidates: Array<RcOffering | null | undefined> = [];
-      if (config.offeringId && offerings?.all?.[config.offeringId]) {
-        candidates.push(offerings.all[config.offeringId]);
-      }
-      if (offerings?.current) candidates.push(offerings.current);
-      for (const off of Object.values(offerings?.all ?? {})) {
-        if (off && !candidates.includes(off)) candidates.push(off);
-      }
-      for (const off of candidates) {
-        const match = findPackageForProduct(off, productId);
-        if (!match) continue;
-        const product = productFromPackage(match.pkg);
-        if (match.pkg.identifier) commerce.package_id = match.pkg.identifier;
-        if (!commerce.offering_id && match.offering.identifier) {
-          commerce.offering_id = match.offering.identifier;
-        }
-        if (product) {
-          if (typeof product.price === 'number' && product.price >= 0) {
-            commerce.price = product.price;
-          }
-          if (typeof product.currencyCode === 'string' && product.currencyCode.length === 3) {
-            commerce.currency = product.currencyCode.toUpperCase();
-          }
-        }
-        break;
-      }
-    } catch (err) {
-       
-      getSdkLogger().warn('[rheo] RevenueCat getOfferings failed:', err);
-    }
-  }
-
-  // Price + currency must travel together (contract).
-  if (commerce.price === undefined || commerce.currency === undefined) {
-    delete commerce.price;
-    delete commerce.currency;
-  }
 
   return commerce;
 };

@@ -3,7 +3,9 @@ import { abandonFlow, findExternalSurface, type FlowState } from '@getrheo/flow-
 import { parseHyperlinkHref, type AppReviewOutcome, type ButtonAction, type ExternalSurfaceNode, type PermissionOutcome } from '@getrheo/contracts';
 import type { SdkResolveResponse } from '@getrheo/contracts';
 import { runBuiltInAppReviewIfAvailable } from '../review/builtInAppReviewRegistry.js';
+import { getSdkLogger } from '../logging/sdkLogger.js';
 import { runBuiltInOsPermissionIfAvailable } from '../permissions/builtInPermissionRegistry.js';
+import { registerPush, unregisterPush } from '../registerPush.js';
 import type { EnqueueSdkFn } from './inputCaptureAnalytics.js';
 import type { NativeButtonActionMeta } from './nativeButtonActionMeta.js';
 
@@ -66,7 +68,19 @@ export const useFlowActions = ({
         };
 
         void runBuiltInOsPermissionIfAvailable(action.permissionKey, prev.session.platform)
-          .then(finalize)
+          .then((outcome) => {
+            finalize(outcome);
+            if (action.permissionKey !== 'notifications') return;
+            const sync =
+              outcome === 'granted'
+                ? registerPush()
+                : outcome === 'denied' || outcome === 'blocked'
+                  ? unregisterPush()
+                  : Promise.resolve();
+            void sync.catch((error) => {
+              getSdkLogger().warn('[rheo] push registration failed', error);
+            });
+          })
           .catch(() => finalize('denied'));
         return;
       }

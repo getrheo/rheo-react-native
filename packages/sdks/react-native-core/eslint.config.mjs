@@ -18,14 +18,14 @@ export default [
                 'Do not import the removed shared facade from the React Native SDK; depend on concrete @rheo/* packages instead.',
             },
             {
-              name: '@rheo/renderer-web',
+              name: '@getrheo/renderer-web',
               message:
                 'React Native SDK code must not import the DOM renderer.',
             },
           ],
           patterns: [
             {
-              group: ['@rheo/renderer-web/*'],
+              group: ['@getrheo/renderer-web/*'],
               message:
                 'React Native SDK code must not import the DOM renderer.',
             },

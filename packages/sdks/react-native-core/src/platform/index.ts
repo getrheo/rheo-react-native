@@ -24,3 +24,10 @@ export {
   __setFontAdapterForTests,
 } from './fontAdapter.js';
 export type { FontAdapter } from './fontAdapter.js';
+export {
+  registerPushTokenAdapter,
+  getPushTokenAdapter,
+  __resetPushTokenAdapterForTests,
+  __setPushTokenAdapterForTests,
+} from './pushTokenAdapter.js';
+export type { PushTokenAdapter, PushDeviceToken } from './pushTokenAdapter.js';

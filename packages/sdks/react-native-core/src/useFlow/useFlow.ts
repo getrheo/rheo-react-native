@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { findScreen, type FlowState, type InterpolationContext } from '@getrheo/flow-runtime';
 import type { NormalizedSurfaceOutcome, SdkResolveResponse } from '@getrheo/contracts';
 import { useEventQueue, useRheo } from '../client.js';
+import { useChannel } from '../useChannel.js';
 import type { UseFlowOptions, UseFlowResult, ExternalSurfacePresenter } from './types.js';
 import { defaultExternalSurfacePresenter } from './types.js';
 export type {
@@ -39,6 +40,8 @@ export const useFlow = ({
 }: UseFlowOptions): UseFlowResult => {
   const config = useRheo();
   const queue = useEventQueue();
+  const channelView = useChannel({ channelId });
+  void channelView.channel;
   const channelTrimmed = channelId.trim();
   const presenterRef = useRef<ExternalSurfacePresenter>(
     externalSurfacePresenter ?? defaultExternalSurfacePresenter,
